@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeLens RAG — System Design Document</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --navy: #060B18;
+            --navy2: #0D1526;
+            --navy3: #152035;
+            --navy4: #1E2D47;
+            --cyan: #00C8FF;
+            --cyan2: #00A3D9;
+            --cyan3: #0077A8;
+            --amber: #F0A500;
+            --amber2: #C98900;
+            --amber3: #7A5300;
+            --white: #E8EEF7;
+            --muted: #7A90B0;
+            --border: rgba(0, 200, 255, 0.12);
+            --border2: rgba(240, 165, 0, 0.2);
+            --font-head: 'Syne', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--navy);
+            color: var(--white);
+            font-family: var(--font-body);
+            font-size: 14px;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── NOISE TEXTURE OVERLAY ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── SIDEBAR NAV ── */
+        .sidenav {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 220px;
+            background: var(--navy2);
+            border-right: 1px solid var(--border);
+            padding: 28px 0;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .sidenav-logo {
+            font-family: var(--font-head);
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--cyan);
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sidenav-logo span {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 400;
+            font-family: var(--font-mono);
+        }
+
+        .nav-section {
+            padding: 16px 20px 6px;
+            font-size: 9px;
+            font-family: var(--font-mono);
+            color: var(--amber);
+            letter-spacing: .15em;
+            text-transform: uppercase;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 6px 20px;
+            font-size: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            transition: color .15s, background .15s;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--cyan);
+            background: rgba(0, 200, 255, 0.05);
+            border-left-color: var(--cyan);
+        }
+
+        /* ── MAIN CONTENT ── */
+        .main {
+            margin-left: 220px;
+            padding: 0 48px 80px;
+            max-width: 1100px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── HERO ── */
+        .hero {
+            padding: 64px 0 48px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 56px;
+        }
+
+        .hero-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--amber);
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hero-eyebrow::before {
+            content: '';
+            display: block;
+            width: 32px;
+            height: 1px;
+            background: var(--amber);
+        }
+
+        h1 {
+            font-family: var(--font-head);
+            font-size: 52px;
+            font-weight: 800;
+            line-height: 1.05;
+            color: var(--white);
+            margin-bottom: 16px;
+        }
+
+        h1 .accent {
+            color: var(--cyan);
+        }
+
+        .hero-sub {
+            font-size: 15px;
+            color: var(--muted);
+            max-width: 620px;
+            line-height: 1.8;
+            margin-bottom: 32px;
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .meta-chip {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-chip .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .dot-cyan {
+            background: var(--cyan);
+        }
+
+        .dot-amber {
+            background: var(--amber);
+        }
+
+        .dot-green {
+            background: #22c55e;
+        }
+
+        /* ── SECTION TITLES ── */
+        h2 {
+            font-family: var(--font-head);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        h2 .num {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--cyan);
+            margin-right: 10px;
+        }
+
+        .section-lead {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 32px;
+            max-width: 680px;
+        }
+
+        section {
+            margin-bottom: 72px;
+        }
+
+        h3 {
+            font-family: var(--font-head);
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 12px;
+        }
+
+        h4 {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--cyan);
+            margin-bottom: 8px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        /* ── PROGRESS TRACKER ── */
+        .progress-board {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .pb-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .pb-header h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .pb-pct {
+            font-family: var(--font-mono);
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+
+        .pb-bar-wrap {
+            height: 3px;
+            background: var(--navy3);
+        }
+
+        .pb-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--amber));
+            transition: width .5s;
+        }
+
+        .pb-phases {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0;
+        }
+
+        .pb-phase {
+            padding: 14px 20px;
+            border-right: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+        }
+
+        .pb-phase:last-child {
+            border-right: none;
+        }
+
+        .phase-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            margin-bottom: 4px;
+        }
+
+        .phase-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .phase-progress {
+            height: 2px;
+            background: var(--navy3);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .phase-bar {
+            height: 100%;
+            border-radius: 1px;
+        }
+
+        .bar-done {
+            background: #22c55e;
+        }
+
+        .bar-wip {
+            background: var(--amber);
+        }
+
+        .bar-todo {
+            background: var(--navy4);
+        }
+
+        .phase-status {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-done {
+            color: #22c55e;
+        }
+
+        .status-wip {
+            color: var(--amber);
+        }
+
+        .status-todo {
+            color: var(--muted);
+        }
+
+        /* ── FILE CHECKLIST ── */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .file-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .file-card-head {
+            padding: 10px 14px;
+            background: var(--navy3);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--amber);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .file-item {
+            padding: 7px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.05);
+            color: var(--muted);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .fi-done {
+            color: var(--white);
+        }
+
+        .fi-icon {
+            width: 14px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .check {
+            color: #22c55e;
+        }
+
+        .circle {
+            color: var(--amber);
+        }
+
+        .dash {
+            color: var(--navy4);
+        }
+
+        /* ── ARCHITECTURE DIAGRAM ── */
+        .arch-diagram {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 32px;
+            margin-bottom: 32px;
+            overflow-x: auto;
+        }
+
+        .arch-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 600px;
+        }
+
+        .arch-layer {
+            padding: 20px 0;
+            border-bottom: 1px dashed var(--border);
+            position: relative;
+        }
+
+        .arch-layer:last-child {
+            border-bottom: none;
+        }
+
+        .layer-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--amber);
+            text-transform: uppercase;
+            letter-spacing: .15em;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .layer-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border2);
+        }
+
+        .arch-nodes {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .arch-node {
+            padding: 10px 16px;
+            border-radius: 7px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            border: 1px solid;
+            flex: 1;
+            min-width: 130px;
+            max-width: 200px;
+        }
+
+        .node-cyan {
+            border-color: rgba(0, 200, 255, 0.3);
+            background: rgba(0, 200, 255, 0.06);
+        }
+
+        .node-amber {
+            border-color: rgba(240, 165, 0, 0.3);
+            background: rgba(240, 165, 0, 0.06);
+        }
+
+        .node-navy {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: var(--navy3);
+        }
+
+        .node-green {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .node-title {
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .node-cyan .node-title {
+            color: var(--cyan);
+        }
+
+        .node-amber .node-title {
+            color: var(--amber);
+        }
+
+        .node-navy .node-title {
+            color: var(--white);
+        }
+
+        .node-green .node-title {
+            color: #22c55e;
+        }
+
+        .node-sub {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 300;
+        }
+
+        .arrow-row {
+            display: flex;
+            justify-content: center;
+            padding: 6px 0;
+        }
+
+        .arrow-down {
+            color: var(--muted);
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        /* ── TECH STACK TABLE ── */
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .stack-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .stack-head {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stack-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            flex-shrink: 0;
+        }
+
+        .icon-cyan {
+            background: rgba(0, 200, 255, 0.15);
+            color: var(--cyan);
+        }
+
+        .icon-amber {
+            background: rgba(240, 165, 0, 0.15);
+            color: var(--amber);
+        }
+
+        .icon-green {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .stack-name {
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .stack-badge {
+            margin-left: auto;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .stack-body {
+            padding: 14px 16px;
+        }
+
+        .stack-why {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.65;
+            margin-bottom: 10px;
+        }
+
+        .stack-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: var(--navy3);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        /* ── LLD SECTION ── */
+        .lld-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .lld-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .lld-head {
+            padding: 12px 16px;
+            background: var(--navy3);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--cyan);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lld-body {
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .endpoint {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 7px 10px;
+            background: var(--navy3);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .method {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .m-get {
+            background: rgba(0, 200, 255, 0.15);
+            color: var(--cyan);
+        }
+
+        .m-post {
+            background: rgba(240, 165, 0, 0.15);
+            color: var(--amber);
+        }
+
+        .m-ws {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .m-del {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .ep-path {
+            color: var(--white);
+            flex: 1;
+        }
+
+        .ep-desc {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* ── INFRA SECTION ── */
+        .infra-flow {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+        }
+
+        .flow-steps {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            position: relative;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -10px;
+            top: 22px;
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .flow-box {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 11px;
+            border: 1px solid;
+        }
+
+        .fb-cyan {
+            border-color: rgba(0, 200, 255, 0.4);
+            background: rgba(0, 200, 255, 0.1);
+            color: var(--cyan);
+        }
+
+        .fb-amber {
+            border-color: rgba(240, 165, 0, 0.4);
+            background: rgba(240, 165, 0, 0.1);
+            color: var(--amber);
+        }
+
+        .fb-green {
+            border-color: rgba(34, 197, 94, 0.4);
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .fb-navy {
+            border-color: var(--border);
+            background: var(--navy3);
+            color: var(--muted);
+        }
+
+        .flow-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* ── ENV VARS ── */
+        .env-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: var(--navy2);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .env-table th {
+            padding: 10px 16px;
+            text-align: left;
+            background: var(--navy3);
+            color: var(--amber);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .env-table td {
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.05);
+            vertical-align: top;
+        }
+
+        .env-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .env-key {
+            color: var(--cyan);
+        }
+
+        .env-val {
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .env-desc {
+            color: var(--white);
+            font-size: 11px;
+        }
+
+        /* ── SECURITY SECTION ── */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .sec-card {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .sec-title {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--cyan);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sec-title::before {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 14px;
+            background: var(--cyan);
+            border-radius: 2px;
+        }
+
+        .sec-body {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        /* ── MONITORING ── */
+        .monitor-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .metric-card {
+            flex: 1;
+            min-width: 150px;
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .metric-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+
+        .metric-sub {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--amber);
+            margin-top: 2px;
+        }
+
+        /* ── CI/CD PIPELINE ── */
+        .pipeline {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            overflow-x: auto;
+        }
+
+        .pipe-stages {
+            display: flex;
+            gap: 2px;
+            min-width: 600px;
+        }
+
+        .pipe-stage {
+            flex: 1;
+            background: var(--navy3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 10px;
+            position: relative;
+        }
+
+        .pipe-stage::after {
+            content: '▶';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--cyan);
+            font-size: 10px;
+            z-index: 2;
+        }
+
+        .pipe-stage:last-child::after {
+            display: none;
+        }
+
+        .pipe-name {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--amber);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: 8px;
+        }
+
+        .pipe-job {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--muted);
+            padding: 3px 6px;
+            background: var(--navy2);
+            border-radius: 3px;
+            margin-bottom: 4px;
+            border: 1px solid var(--border);
+        }
+
+        /* ── CALLOUT ── */
+        .callout {
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 20px 0;
+            font-size: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            line-height: 1.65;
+        }
+
+        .callout-cyan {
+            background: rgba(0, 200, 255, 0.06);
+            border: 1px solid rgba(0, 200, 255, 0.2);
+            color: var(--white);
+        }
+
+        .callout-amber {
+            background: rgba(240, 165, 0, 0.06);
+            border: 1px solid rgba(240, 165, 0, 0.2);
+            color: var(--white);
+        }
+
+        .callout-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* ── CODE BLOCK ── */
+        pre {
+            background: var(--navy2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--white);
+            overflow-x: auto;
+            line-height: 1.7;
+            margin: 12px 0;
+        }
+
+        .c-cyan {
+            color: var(--cyan);
+        }
+
+        .c-amber {
+            color: var(--amber);
+        }
+
+        .c-green {
+            color: #22c55e;
+        }
+
+        .c-muted {
+            color: var(--muted);
+        }
+
+        code {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: var(--navy3);
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: var(--cyan);
+        }
+
+        /* ── DIVIDER ── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 48px 0;
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--navy2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--navy4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <nav class="sidenav">
+        <div class="sidenav-logo">
+            CodeLens RAG
+            <span>system design v1.0</span>
+        </div>
+        <div class="nav-section">Overview</div>
+        <a class="nav-link" href="#overview">What is CodeLens</a>
+        <a class="nav-link" href="#progress">Build Progress</a>
+        <a class="nav-link" href="#files">File Checklist</a>
+        <div class="nav-section">Architecture</div>
+        <a class="nav-link" href="#hld">High-Level Design</a>
+        <a class="nav-link" href="#techstack">Tech Stack</a>
+        <a class="nav-link" href="#lld">Low-Level Design</a>
+        <a class="nav-link" href="#dataflow">Data Flow</a>
+        <div class="nav-section">Infrastructure</div>
+        <a class="nav-link" href="#infra">Infrastructure</a>
+        <a class="nav-link" href="#security">Security</a>
+        <a class="nav-link" href="#cicd">CI/CD Pipeline</a>
+        <a class="nav-link" href="#monitoring">Monitoring</a>
+        <div class="nav-section">Reference</div>
+        <a class="nav-link" href="#envvars">Env Variables</a>
+        <a class="nav-link" href="#commands">Commands</a>
+        <a class="nav-link" href="#domain">Domain & DNS</a>
+        <a class="nav-link" href="#docker-k8s">Docker & Kubernetes</a>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <!-- HERO -->
+        <div class="hero" id="overview">
+            <div class="hero-eyebrow">CodeLens RAG · System Design Document</div>
+            <h1><span class="accent">CodeLens</span><br>RAG Platform</h1>
+            <p class="hero-sub">
+                An AI-powered codebase exploration and Q&amp;A platform. Users paste any GitHub URL, PDF link, or Google
+                Drive document — CodeLens ingests and indexes the entire codebase using AST-aware chunking, then powers
+                a real-time RAG chat where users can click any line of code to ask questions about it, get error
+                explanations, and learn how the system works — all with voice STT/TTS support.
+            </p>
+            <div class="hero-meta">
+                <div class="meta-chip">
+                    <div class="dot dot-cyan"></div> Frontend: Next.js 14 + shadcn/ui
+                </div>
+                <div class="meta-chip">
+                    <div class="dot dot-amber"></div> Backend: Python 3.12 + FastAPI
+                </div>
+                <div class="meta-chip">
+                    <div class="dot dot-green"></div> Infra: GCP + Cloudflare + GitLab CI
+                </div>
+                <div class="meta-chip">
+                    <div class="dot dot-cyan"></div> Auth: Supabase + JWT
+                </div>
+                <div class="meta-chip">
+                    <div class="dot dot-amber"></div> AI: Groq Llama 3 + ChromaDB
+                </div>
+            </div>
+        </div>
+
+        <!-- PROGRESS -->
+        <section id="progress">
+            <h2><span class="num">01</span> Build Progress</h2>
+            <p class="section-lead">Track the current state of the project. Update the progress bars manually as phases
+                complete. Claude Code reads this section to understand current state before suggesting next steps.</p>
+
+            <div class="progress-board">
+                <div class="pb-header">
+                    <h3>Overall completion</h3>
+                    <div class="pb-pct">38%</div>
+                </div>
+                <div class="pb-bar-wrap">
+                    <div class="pb-bar" style="width:38%"></div>
+                </div>
+                <div class="pb-phases">
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 1</div>
+                        <div class="phase-name">Project scaffold</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-done" style="width:100%"></div>
+                        </div>
+                        <div class="phase-status status-done">✓ complete</div>
+                    </div>
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 2</div>
+                        <div class="phase-name">Frontend UI</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-wip" style="width:65%"></div>
+                        </div>
+                        <div class="phase-status status-wip">⬡ in progress</div>
+                    </div>
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 3</div>
+                        <div class="phase-name">FastAPI backend</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-todo" style="width:0%"></div>
+                        </div>
+                        <div class="phase-status status-todo">○ not started</div>
+                    </div>
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 4</div>
+                        <div class="phase-name">RAG pipeline</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-todo" style="width:0%"></div>
+                        </div>
+                        <div class="phase-status status-todo">○ not started</div>
+                    </div>
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 5</div>
+                        <div class="phase-name">Auth + Supabase</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-todo" style="width:0%"></div>
+                        </div>
+                        <div class="phase-status status-todo">○ not started</div>
+                    </div>
+                    <div class="pb-phase">
+                        <div class="phase-label">Phase 6</div>
+                        <div class="phase-name">Infra + Deploy</div>
+                        <div class="phase-progress">
+                            <div class="phase-bar bar-todo" style="width:0%"></div>
+                        </div>
+                        <div class="phase-status status-todo">○ not started</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-amber">
+                <span class="callout-icon">⚡</span>
+                <span><strong>Claude Code instruction:</strong> When scanning this file, check the progress bars above
+                    to understand what is already built. Do not re-scaffold completed phases. Focus only on the next
+                    incomplete phase. The file checklist below shows exactly which files exist vs still need to be
+                    created.</span>
+            </div>
+        </section>
+
+        <!-- FILE CHECKLIST -->
+        <section id="files">
+            <h2><span class="num">02</span> File Checklist</h2>
+            <p class="section-lead">Every file in the project. ✓ = exists and complete · ⬡ = exists but incomplete · ○ =
+                not yet created.</p>
+
+            <div class="file-grid">
+                <div class="file-card">
+                    <div class="file-card-head">Frontend — Store & Hooks</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/store/useEditorStore.ts</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/hooks/useVoiceInput.ts</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/hooks/useTTS.ts</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/hooks/useFileTree.ts</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/hooks/useFileContent.ts</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/hooks/useRAGChat.ts</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Frontend — Layout</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/components/layout/TopBar.tsx
+                    </div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/components/layout/AppShell.tsx</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/app/layout.tsx</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/app/page.tsx</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/app/globals.css</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/lib/utils.ts</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Frontend — File Tree</div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/file-tree/FileTree.tsx</div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/file-tree/FileTreeNode.tsx</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Frontend — Code Viewer</div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/code-viewer/CodeViewer.tsx</div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/code-viewer/LineContextPill.tsx</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Frontend — Chat Panel</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/components/chat/ChatPanel.tsx
+                    </div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/chat/ChatMessage.tsx</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>src/components/chat/ChatInput.tsx
+                    </div>
+                    <div class="file-item fi-done"><span
+                            class="fi-icon check">✓</span>src/components/chat/VoiceButton.tsx</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>src/components/chat/CodeReference.tsx
+                    </div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Backend — Core</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/main.py</div>
+                    <div class="file-item fi-done"><span class="fi-icon check">✓</span>backend/requirements.txt</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/.env</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/__init__.py</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Backend — RAG Modules</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/ingest.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/chunker.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/embedder.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/retriever.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/chat.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/file_tree.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/models.py</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>backend/app/auth.py</div>
+                </div>
+                <div class="file-card">
+                    <div class="file-card-head">Config & DevOps</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>.env.local</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>docker-compose.yml</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>Dockerfile (backend)</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>.gitlab-ci.yml</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>nginx.conf</div>
+                    <div class="file-item"><span class="fi-icon circle">○</span>prometheus.yml</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <!-- HLD -->
+        <section id="hld">
+            <h2><span class="num">03</span> High-Level Design</h2>
+            <p class="section-lead">The macro-level picture of how every service in CodeLens connects. Read top to
+                bottom — user request flows from the browser down through Cloudflare, load balancer, application layer,
+                AI layer, and finally to persistence.</p>
+
+            <div class="arch-diagram">
+                <div class="arch-grid">
+
+                    <div class="arch-layer">
+                        <div class="layer-label">Client layer</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Browser</div>
+                                <div class="node-sub">Next.js 14 App</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Monaco Editor</div>
+                                <div class="node-sub">VS Code engine</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Web Speech API</div>
+                                <div class="node-sub">STT + TTS</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">WebSocket</div>
+                                <div class="node-sub">Streaming chat</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-row">
+                        <div class="arrow-down">↓ HTTPS / WSS</div>
+                    </div>
+
+                    <div class="arch-layer">
+                        <div class="layer-label">Edge layer — Cloudflare (free)</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-amber">
+                                <div class="node-title">Cloudflare CDN</div>
+                                <div class="node-sub">Static asset cache</div>
+                            </div>
+                            <div class="arch-node node-amber">
+                                <div class="node-title">DDoS Protection</div>
+                                <div class="node-sub">Always-on WAF</div>
+                            </div>
+                            <div class="arch-node node-amber">
+                                <div class="node-title">DNS Management</div>
+                                <div class="node-sub">A / CNAME records</div>
+                            </div>
+                            <div class="arch-node node-amber">
+                                <div class="node-title">SSL/TLS</div>
+                                <div class="node-sub">Auto cert provisioning</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-row">
+                        <div class="arrow-down">↓</div>
+                    </div>
+
+                    <div class="arch-layer">
+                        <div class="layer-label">Application layer — GCP (free tier)</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-navy">
+                                <div class="node-title">GCP Load Balancer</div>
+                                <div class="node-sub">HTTP(S) LB, Cloud Armor</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Next.js (Vercel)</div>
+                                <div class="node-sub">Frontend — free tier</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">FastAPI (Cloud Run)</div>
+                                <div class="node-sub">Serverless backend</div>
+                            </div>
+                            <div class="arch-node node-navy">
+                                <div class="node-title">Redis (Upstash)</div>
+                                <div class="node-sub">Rate limiting · cache</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-row">
+                        <div class="arrow-down">↓</div>
+                    </div>
+
+                    <div class="arch-layer">
+                        <div class="layer-label">AI / RAG layer</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Groq API</div>
+                                <div class="node-sub">Llama 3.1-70b LLM</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">Jina Embeddings</div>
+                                <div class="node-sub">Code-aware vectors</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">ChromaDB</div>
+                                <div class="node-sub">Vector store</div>
+                            </div>
+                            <div class="arch-node node-cyan">
+                                <div class="node-title">FlashRank</div>
+                                <div class="node-sub">Local reranker</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-row">
+                        <div class="arrow-down">↓</div>
+                    </div>
+
+                    <div class="arch-layer">
+                        <div class="layer-label">Persistence layer</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-green">
+                                <div class="node-title">Supabase</div>
+                                <div class="node-sub">Auth + PostgreSQL</div>
+                            </div>
+                            <div class="arch-node node-green">
+                                <div class="node-title">GCP Cloud Storage</div>
+                                <div class="node-sub">Uploaded files · PDFs</div>
+                            </div>
+                            <div class="arch-node node-green">
+                                <div class="node-title">SQLite</div>
+                                <div class="node-sub">Repo metadata cache</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow-row">
+                        <div class="arrow-down">↓ Metrics scrape</div>
+                    </div>
+
+                    <div class="arch-layer">
+                        <div class="layer-label">Observability layer</div>
+                        <div class="arch-nodes">
+                            <div class="arch-node node-navy">
+                                <div class="node-title">Prometheus</div>
+                                <div class="node-sub">Metrics collection</div>
+                            </div>
+                            <div class="arch-node node-navy">
+                                <div class="node-title">Grafana</div>
+                                <div class="node-sub">Dashboards · alerts</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TECH STACK -->
+        <section id="techstack">
+            <h2><span class="num">04</span> Tech Stack — Full Rationale</h2>
+            <p class="section-lead">Every tool chosen for a specific reason. All are free tier or fully open source.</p>
+
+            <div class="stack-grid">
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-cyan">NX</div>
+                        <div class="stack-name">Next.js 14</div>
+                        <div class="stack-badge">free</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">App Router gives server components for fast initial load. Built-in
+                            TypeScript, Tailwind support, Vercel deployment with zero config. The standard for
+                            production React apps — MNC engineers immediately recognise the pattern.</div>
+                        <div class="stack-tags"><span class="tag">App Router</span><span
+                                class="tag">TypeScript</span><span class="tag">SSR</span><span class="tag">Vercel</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-cyan">SH</div>
+                        <div class="stack-name">shadcn/ui</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Copy-paste component library built on Radix UI primitives. Not a
+                            dependency — components live in your codebase and are fully customisable. The Resizable
+                            component gives VS Code-style draggable panels out of the box. Nova preset uses Geist font —
+                            designed for developer tools.</div>
+                        <div class="stack-tags"><span class="tag">Radix UI</span><span class="tag">Tailwind</span><span
+                                class="tag">Resizable</span><span class="tag">Geist</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-cyan">MN</div>
+                        <div class="stack-name">Monaco Editor</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">The exact engine powering VS Code. Provides syntax highlighting for 50+
+                            languages, line decorations API for highlighting referenced lines, minimap, folding — all
+                            with zero additional configuration. @monaco-editor/react wraps it cleanly for Next.js.</div>
+                        <div class="stack-tags"><span class="tag">VS Code engine</span><span class="tag">Line
+                                decorations</span><span class="tag">50+ languages</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">FA</div>
+                        <div class="stack-name">FastAPI</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Python's fastest async web framework. Native WebSocket support for
+                            streaming LLM responses token-by-token. Auto-generates OpenAPI docs at /docs — immediately
+                            useful for Postman collections. Plays perfectly with all Python ML/AI libraries (LangChain,
+                            sentence-transformers, tree-sitter).</div>
+                        <div class="stack-tags"><span class="tag">Async</span><span class="tag">WebSocket</span><span
+                                class="tag">OpenAPI</span><span class="tag">Python 3.12</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">SB</div>
+                        <div class="stack-name">Supabase</div>
+                        <div class="stack-badge">free tier</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Provides Postgres database + built-in auth (email, OAuth, magic link) +
+                            Row Level Security in one free-tier package. Auth returns standard JWTs — FastAPI verifies
+                            them using the Supabase JWT secret. Eliminates the need to build authentication from
+                            scratch. 500MB free storage included.</div>
+                        <div class="stack-tags"><span class="tag">PostgreSQL</span><span class="tag">Auth</span><span
+                                class="tag">JWT</span><span class="tag">RLS</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">GQ</div>
+                        <div class="stack-name">Groq API</div>
+                        <div class="stack-badge">free tier</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Fastest LLM inference available — Llama 3.1-70b runs at ~750
+                            tokens/second on Groq's LPU hardware vs ~50 tokens/second on typical GPU APIs. This makes
+                            the streaming chat feel instant. Free tier gives 14,400 requests/day — more than enough for
+                            a portfolio project. LangChain has a native langchain-groq integration.</div>
+                        <div class="stack-tags"><span class="tag">Llama 3.1-70b</span><span class="tag">750
+                                tok/s</span><span class="tag">LangChain</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-cyan">CH</div>
+                        <div class="stack-name">ChromaDB</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Lightweight, local-first vector database. Stores embeddings to disk with
+                            zero config — just a Python package, no external service needed. Supports metadata filtering
+                            (by file path, language, function name) which is essential for codebase RAG. Can be swapped
+                            for Qdrant in production.</div>
+                        <div class="stack-tags"><span class="tag">Local first</span><span class="tag">Metadata
+                                filter</span><span class="tag">Persistent</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-cyan">TS</div>
+                        <div class="stack-name">tree-sitter</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Parses source code into an AST (Abstract Syntax Tree) so chunking happens
+                            at meaningful boundaries — function definitions, class bodies — not arbitrary token windows.
+                            This is what separates this project from a generic "chat with PDF" demo. A chunk is never
+                            half a function. Interviewers will ask you to explain this.</div>
+                        <div class="stack-tags"><span class="tag">AST parsing</span><span class="tag">30+
+                                languages</span><span class="tag">Function-level chunks</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">RD</div>
+                        <div class="stack-name">Redis (Upstash)</div>
+                        <div class="stack-badge">free tier</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Upstash provides serverless Redis with 10,000 free requests/day. Used for
+                            two things: rate limiting (prevent API abuse — max 10 requests/minute per user using sliding
+                            window algorithm) and caching repo ingestion status so re-visiting a repo doesn't trigger
+                            re-embedding. HTTP-based so works on Cloud Run.</div>
+                        <div class="stack-tags"><span class="tag">Rate limiting</span><span class="tag">Sliding
+                                window</span><span class="tag">Ingestion cache</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">CF</div>
+                        <div class="stack-name">Cloudflare (free)</div>
+                        <div class="stack-badge">free forever</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Free plan includes: DNS management, DDoS protection (always-on, unmetered
+                            mitigation), CDN with 200+ edge nodes for static asset delivery, automatic SSL/TLS
+                            certificate provisioning and renewal, and WAF (Web Application Firewall). This replaces what
+                            would cost hundreds of dollars/month on AWS Shield + CloudFront.</div>
+                        <div class="stack-tags"><span class="tag">DNS</span><span class="tag">DDoS</span><span
+                                class="tag">CDN</span><span class="tag">SSL/TLS</span><span class="tag">WAF</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-green">GCP</div>
+                        <div class="stack-name">GCP Cloud Run</div>
+                        <div class="stack-badge">free tier</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Serverless container platform — deploy a Docker image, GCP handles
+                            scaling. Free tier: 2M requests/month, 360K vCPU-seconds, 180K GB-seconds. FastAPI runs as a
+                            containerised service. Cloud Run auto-scales to zero when idle (saves cost) and scales up
+                            instantly on traffic. HTTPS built-in.</div>
+                        <div class="stack-tags"><span class="tag">Serverless</span><span
+                                class="tag">Auto-scale</span><span class="tag">Docker</span><span
+                                class="tag">HTTPS</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-green">GL</div>
+                        <div class="stack-name">GitLab CI/CD</div>
+                        <div class="stack-badge">free tier</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Free tier includes 400 CI/CD minutes/month and built-in container
+                            registry. Pipeline: push to main → lint + test → Docker build → push to GCP Artifact
+                            Registry → Cloud Run deploy. GitLab CI uses .gitlab-ci.yml which lives in the repo — no
+                            external CI service needed. Free private repos included.</div>
+                        <div class="stack-tags"><span class="tag">.gitlab-ci.yml</span><span class="tag">Container
+                                registry</span><span class="tag">Auto-deploy</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-amber">PR</div>
+                        <div class="stack-name">Prometheus + Grafana</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Prometheus scrapes metrics from FastAPI via the
+                            prometheus-fastapi-instrumentator library — request count, latency histograms, error rates,
+                            active WebSocket connections. Grafana reads from Prometheus and visualises dashboards. Both
+                            run as Docker containers. Grafana Cloud free tier available as an alternative to
+                            self-hosting.</div>
+                        <div class="stack-tags"><span class="tag">Metrics scrape</span><span class="tag">Latency
+                                histogram</span><span class="tag">Alerting</span></div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="stack-head">
+                        <div class="stack-icon icon-green">ZU</div>
+                        <div class="stack-name">Zustand</div>
+                        <div class="stack-badge">open source</div>
+                    </div>
+                    <div class="stack-body">
+                        <div class="stack-why">Lightweight global state manager for React. Used to share the highlighted
+                            line number and context line between the Monaco Editor panel and the Chat panel — they are
+                            sibling components that need to communicate without prop-drilling. 1KB bundle size vs
+                            Redux's 50KB overhead.</div>
+                        <div class="stack-tags"><span class="tag">Global state</span><span class="tag">1KB</span><span
+                                class="tag">No boilerplate</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <!-- LLD -->
+        <section id="lld">
+            <h2><span class="num">05</span> Low-Level Design — API Contracts</h2>
+            <p class="section-lead">Every FastAPI endpoint and its contract. Use this as your Postman collection
+                reference. All protected endpoints require an <code>Authorization: Bearer &lt;jwt&gt;</code> header.</p>
+
+            <div class="lld-grid">
+                <div class="lld-card">
+                    <div class="lld-head">Ingestion endpoints</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-post">POST</span>
+                            <div>
+                                <div class="ep-path">/ingest</div>
+                                <div class="ep-desc">Body: {url, type: "github"|"pdf"|"gdrive"}. Clones repo or fetches
+                                    file, chunks it with tree-sitter, embeds and stores in ChromaDB. Returns {task_id}
+                                    for polling.</div>
+                            </div>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method m-get">GET</span>
+                            <div>
+                                <div class="ep-path">/ingest/status/{task_id}</div>
+                                <div class="ep-desc">Returns {status: "pending"|"done"|"error", progress: 0-100,
+                                    files_processed: n}</div>
+                            </div>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method m-del">DEL</span>
+                            <div>
+                                <div class="ep-path">/ingest/{repo_id}</div>
+                                <div class="ep-desc">Deletes all embeddings and cached files for a repo. Frees ChromaDB
+                                    storage.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lld-card">
+                    <div class="lld-head">File explorer endpoints</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-get">GET</span>
+                            <div>
+                                <div class="ep-path">/tree?repo_id={id}</div>
+                                <div class="ep-desc">Returns nested JSON tree of all files in the repo. Used by FileTree
+                                    component to render the sidebar. Cached in Redis for 1 hour.</div>
+                            </div>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method m-get">GET</span>
+                            <div>
+                                <div class="ep-path">/file?path={path}&repo_id={id}</div>
+                                <div class="ep-desc">Returns {content, language, lines[]} for a specific file. Monaco
+                                    Editor renders this. Language auto-detected from file extension.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lld-card">
+                    <div class="lld-head">Chat endpoint (WebSocket)</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-ws">WS</span>
+                            <div>
+                                <div class="ep-path">/chat</div>
+                                <div class="ep-desc">Client sends: {query, file, context_line: {file, line, content}}.
+                                    Server streams: {token: "word"} repeatedly, then {done: true, highlight_line: N}.
+                                    highlight_line tells Monaco to jump to the relevant line.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lld-card">
+                    <div class="lld-head">Auth endpoints</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-post">POST</span>
+                            <div>
+                                <div class="ep-path">/auth/verify</div>
+                                <div class="ep-desc">Verifies Supabase JWT. Used as a FastAPI dependency — all protected
+                                    routes call this. Returns {user_id, email}.</div>
+                            </div>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method m-get">GET</span>
+                            <div>
+                                <div class="ep-path">/health</div>
+                                <div class="ep-desc">Public. Returns {status: "ok", version, uptime}. Used by GCP health
+                                    checks and Prometheus scrape.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lld-card">
+                    <div class="lld-head">ChromaDB data model</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-post">DOC</span>
+                            <div>
+                                <div class="ep-path">Collection: "codebase_{repo_id}"</div>
+                                <div class="ep-desc">id: "{filepath}:{start_line}-{end_line}" | document: raw chunk text
+                                    | embedding: Jina 768-dim vector | metadata: {file, language, type:
+                                    "function"|"class"|"module", start_line, end_line}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lld-card">
+                    <div class="lld-head">Supabase schema</div>
+                    <div class="lld-body">
+                        <div class="endpoint">
+                            <span class="method m-post">TBL</span>
+                            <div>
+                                <div class="ep-path">Table: repos</div>
+                                <div class="ep-desc">id UUID · user_id FK · url TEXT · status TEXT · file_count INT ·
+                                    created_at TIMESTAMP · chroma_collection TEXT</div>
+                            </div>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method m-post">TBL</span>
+                            <div>
+                                <div class="ep-path">Table: chat_history</div>
+                                <div class="ep-desc">id UUID · user_id FK · repo_id FK · role TEXT · content TEXT ·
+                                    context_line JSONB · created_at TIMESTAMP</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DATA FLOW -->
+        <section id="dataflow">
+            <h2><span class="num">06</span> Data Flow — Request Lifecycle</h2>
+            <p class="section-lead">Two critical flows: repo ingestion (async, background) and a chat query (real-time,
+                streamed).</p>
+
+            <h3>Repo ingestion flow</h3>
+            <div class="infra-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">USER</div>
+                        <div class="flow-label">Pastes GitHub URL</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">POST /ingest</div>
+                        <div class="flow-label">FastAPI receives</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">GitPython</div>
+                        <div class="flow-label">Clones repo locally</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">tree-sitter</div>
+                        <div class="flow-label">AST chunks each file</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">Jina Embed</div>
+                        <div class="flow-label">768-dim vectors</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">ChromaDB</div>
+                        <div class="flow-label">Store + persist</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-navy">Supabase</div>
+                        <div class="flow-label">Save repo metadata</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Chat query flow</h3>
+            <div class="infra-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">USER</div>
+                        <div class="flow-label">Clicks line + sends query</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">WS /chat</div>
+                        <div class="flow-label">WebSocket receives</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">Jina Embed</div>
+                        <div class="flow-label">Embed query text</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">ChromaDB</div>
+                        <div class="flow-label">Top-5 similar chunks</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">FlashRank</div>
+                        <div class="flow-label">Rerank results</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-amber">Groq LLM</div>
+                        <div class="flow-label">Stream response</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-box fb-cyan">WebSocket</div>
+                        <div class="flow-label">Token stream to UI</div>
+                    </div>
+                </div>
+            </div>
+
+            <pre><span class="c-muted"># FastAPI chat handler (simplified)</span>
+<span class="c-amber">@app</span>.websocket(<span class="c-green">"/chat"</span>)
+<span class="c-cyan">async def</span> chat_ws(ws: WebSocket, user=Depends(verify_jwt)):
+    <span class="c-cyan">await</span> ws.accept()
+    payload = <span class="c-cyan">await</span> ws.receive_json()
+
+    query_vec = embedder.embed([payload[<span class="c-green">"query"</span>]])[<span class="c-amber">0</span>]
+    raw_docs  = chroma.query(query_embeddings=[query_vec], n_results=<span class="c-amber">8</span>)
+    reranked  = flashrank.rerank(payload[<span class="c-green">"query"</span>], raw_docs, top_k=<span class="c-amber">5</span>)
+
+    <span class="c-muted"># Inject clicked line as mandatory context</span>
+    ctx = payload.get(<span class="c-green">"context_line"</span>)
+    prompt = build_prompt(reranked, ctx, payload[<span class="c-green">"query"</span>])
+
+    <span class="c-cyan">async for</span> token <span class="c-cyan">in</span> groq.stream(prompt):
+        <span class="c-cyan">await</span> ws.send_json({<span class="c-green">"token"</span>: token})
+
+    <span class="c-cyan">await</span> ws.send_json({<span class="c-green">"done"</span>: <span class="c-amber">True</span>})</pre>
+        </section>
+
+        <div class="divider"></div>
+
+        <!-- INFRA -->
+        <section id="infra">
+            <h2><span class="num">07</span> Infrastructure Setup</h2>
+            <p class="section-lead">Everything needed to go from local dev to production. All free-tier or open-source.
+            </p>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>GCP Cloud Run — backend deployment</h4>
+                <pre><span class="c-muted"># 1. Build and push Docker image</span>
+docker build -t gcr.io/<span class="c-amber">YOUR_PROJECT</span>/codelens-backend .
+docker push gcr.io/<span class="c-amber">YOUR_PROJECT</span>/codelens-backend
+
+<span class="c-muted"># 2. Deploy to Cloud Run</span>
+gcloud run deploy codelens-backend \
+  --image gcr.io/<span class="c-amber">YOUR_PROJECT</span>/codelens-backend \
+  --platform managed \
+  --region asia-south1 \
+  --allow-unauthenticated \
+  --set-env-vars <span class="c-green">GROQ_API_KEY</span>=$GROQ_API_KEY</pre>
+            </div>
+
+            <div class="infra-flow">
+                <h4>Docker Compose — local dev</h4>
+                <pre>services:
+  backend:
+    build: ./backend
+    ports: [<span class="c-green">"8000:8000"</span>]
+    env_file: ./backend/.env
+    volumes: [<span class="c-green">"./backend:/app"</span>, <span class="c-green">"chroma_data:/chroma"</span>]
+  redis:
+    image: redis:7-alpine
+    ports: [<span class="c-green">"6379:6379"</span>]
+  prometheus:
+    image: prom/prometheus
+    ports: [<span class="c-green">"9090:9090"</span>]
+    volumes: [<span class="c-green">"./prometheus.yml:/etc/prometheus/prometheus.yml"</span>]
+  grafana:
+    image: grafana/grafana
+    ports: [<span class="c-green">"3001:3000"</span>]
+    depends_on: [prometheus]
+volumes:
+  chroma_data:</pre>
+            </div>
+        </section>
+
+        <!-- SECURITY -->
+        <section id="security">
+            <h2><span class="num">08</span> Security Architecture</h2>
+            <p class="section-lead">Every security layer applied. Defense in depth — multiple independent layers so no
+                single failure exposes the system.</p>
+
+            <div class="security-grid">
+                <div class="sec-card">
+                    <div class="sec-title">JWT Authentication</div>
+                    <div class="sec-body">Supabase issues JWTs on login. FastAPI verifies every protected request using
+                        python-jose with the Supabase JWT secret. Tokens expire in 1 hour. Refresh tokens stored in
+                        httpOnly cookies — never in localStorage. Every WebSocket connection validates the JWT on first
+                        connect.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Redis Rate Limiting</div>
+                    <div class="sec-body">Sliding window algorithm via Upstash Redis. Limits: 10 chat requests/minute
+                        per user, 3 ingestion requests/hour per user. Prevents LLM API cost abuse. If limit exceeded,
+                        FastAPI returns HTTP 429 with Retry-After header. Implemented as a FastAPI middleware
+                        dependency.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">HTTPS + SSL/TLS</div>
+                    <div class="sec-body">Cloudflare provisions and auto-renews SSL certificates for your domain.
+                        Cloudflare → GCP traffic uses Cloudflare's Origin Certificate (Full Strict mode). GCP Cloud Run
+                        has built-in HTTPS. All HTTP requests redirected to HTTPS via Cloudflare Page Rules. HSTS header
+                        enforced.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">DDoS + WAF (Cloudflare)</div>
+                    <div class="sec-body">Cloudflare free plan includes unmetered DDoS mitigation at layers 3, 4, and 7.
+                        WAF blocks OWASP Top 10 attacks (SQL injection, XSS, CSRF). Bot Fight Mode blocks automated
+                        scrapers. Rate limiting at the edge before requests reach GCP — protects against volumetric
+                        attacks with no cost impact.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Input Sanitization</div>
+                    <div class="sec-body">All user-supplied URLs validated against an allowlist (github.com, gitlab.com,
+                        google drive domains only). File paths sanitised to prevent directory traversal — Path.resolve()
+                        checked against repo root. LLM prompt injection mitigated by system prompt design and user input
+                        escaping before injection into RAG context.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Supabase Row Level Security</div>
+                    <div class="sec-body">RLS policies on the repos and chat_history tables ensure users can only
+                        read/write their own data. Policy: auth.uid() = user_id. This means even if the FastAPI backend
+                        is compromised, the database layer still enforces data isolation per user. Enabled at the
+                        Supabase dashboard level.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Environment Secrets</div>
+                    <div class="sec-body">All secrets (GROQ_API_KEY, SUPABASE_JWT_SECRET, etc.) stored in GCP Secret
+                        Manager — never in code or Docker images. CI/CD pipeline pulls secrets at deploy time. .env
+                        files in .gitignore. Frontend env vars prefixed with NEXT_PUBLIC_ only for non-sensitive config
+                        (API URL).</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">CORS Policy</div>
+                    <div class="sec-body">FastAPI CORS middleware configured to allow only your Vercel domain and
+                        localhost for development. Credentials: true, but origins are explicitly whitelisted — never
+                        wildcard (*) in production. WebSocket connections validated by checking Origin header against
+                        the same allowlist.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CI/CD -->
+        <section id="cicd">
+            <h2><span class="num">09</span> CI/CD Pipeline (GitLab)</h2>
+            <p class="section-lead">Automated pipeline triggered on every push to main. The .gitlab-ci.yml file lives in
+                the repo root.</p>
+
+            <div class="pipeline">
+                <div class="pipe-stages">
+                    <div class="pipe-stage">
+                        <div class="pipe-name">Lint</div>
+                        <div class="pipe-job">eslint src/</div>
+                        <div class="pipe-job">ruff backend/</div>
+                        <div class="pipe-job">mypy types</div>
+                    </div>
+                    <div class="pipe-stage">
+                        <div class="pipe-name">Test</div>
+                        <div class="pipe-job">pytest backend/</div>
+                        <div class="pipe-job">vitest src/</div>
+                        <div class="pipe-job">coverage report</div>
+                    </div>
+                    <div class="pipe-stage">
+                        <div class="pipe-name">Build</div>
+                        <div class="pipe-job">docker build</div>
+                        <div class="pipe-job">next build</div>
+                        <div class="pipe-job">image tag: sha</div>
+                    </div>
+                    <div class="pipe-stage">
+                        <div class="pipe-name">Push</div>
+                        <div class="pipe-job">push GCP registry</div>
+                        <div class="pipe-job">push to Vercel</div>
+                        <div class="pipe-job">scan for secrets</div>
+                    </div>
+                    <div class="pipe-stage">
+                        <div class="pipe-name">Deploy</div>
+                        <div class="pipe-job">gcloud run deploy</div>
+                        <div class="pipe-job">smoke test</div>
+                        <div class="pipe-job">notify Slack</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-cyan" style="margin-top:16px">
+                <span class="callout-icon">💡</span>
+                <span>The pipeline only runs the Deploy stage on the <code>main</code> branch. Feature branches run Lint
+                    + Test only. This prevents accidental production deploys from work-in-progress branches.</span>
+            </div>
+        </section>
+
+        <!-- MONITORING -->
+        <section id="monitoring">
+            <h2><span class="num">10</span> Monitoring (Prometheus + Grafana)</h2>
+            <p class="section-lead">Key metrics collected from FastAPI and surfaced in Grafana dashboards.</p>
+
+            <div class="monitor-row">
+                <div class="metric-card">
+                    <div class="metric-label">p99 latency target</div>
+                    <div class="metric-value">&lt;800ms</div>
+                    <div class="metric-sub">chat response</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Error rate target</div>
+                    <div class="metric-value">&lt;1%</div>
+                    <div class="metric-sub">5xx per minute</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Active WS connections</div>
+                    <div class="metric-value">gauge</div>
+                    <div class="metric-sub">concurrent chats</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Ingestion queue</div>
+                    <div class="metric-value">gauge</div>
+                    <div class="metric-sub">pending tasks</div>
+                </div>
+            </div>
+
+            <pre><span class="c-muted"># prometheus.yml — scrape FastAPI metrics endpoint</span>
+scrape_configs:
+  - job_name: <span class="c-green">"codelens-backend"</span>
+    static_configs:
+      - targets: [<span class="c-green">"backend:8000"</span>]
+    metrics_path: <span class="c-green">"/metrics"</span>
+    scrape_interval: <span class="c-amber">15s</span></pre>
+
+            <pre><span class="c-muted"># Add to backend/main.py</span>
+<span class="c-cyan">from</span> prometheus_fastapi_instrumentator <span class="c-cyan">import</span> Instrumentator
+Instrumentator().instrument(app).expose(app)
+<span class="c-muted"># This automatically exposes /metrics with request count, latency, error rate</span></pre>
+        </section>
+
+        <!-- ENV VARS -->
+        <section id="envvars">
+            <h2><span class="num">11</span> Environment Variables</h2>
+            <p class="section-lead">All environment variables required. Never commit these to git.</p>
+
+            <table class="env-table">
+                <thead>
+                    <tr>
+                        <th>Variable</th>
+                        <th>Location</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="env-key">GROQ_API_KEY</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Groq API key — get free at console.groq.com</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">SUPABASE_URL</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Your Supabase project URL (from dashboard)</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">SUPABASE_JWT_SECRET</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">JWT secret for verifying Supabase tokens in FastAPI</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">SUPABASE_SERVICE_KEY</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Service role key for admin DB operations</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">REDIS_URL</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Upstash Redis REST URL for rate limiting</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">REDIS_TOKEN</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Upstash Redis REST auth token</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">GCS_BUCKET_NAME</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">GCP Cloud Storage bucket for uploaded files</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">GOOGLE_APPLICATION_CREDENTIALS</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Path to GCP service account JSON key file</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">CHROMA_PERSIST_DIR</td>
+                        <td class="env-val">backend/.env</td>
+                        <td class="env-desc">Directory where ChromaDB stores vectors on disk</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">NEXT_PUBLIC_API_URL</td>
+                        <td class="env-val">.env.local</td>
+                        <td class="env-desc">FastAPI base URL (http://localhost:8000 in dev)</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">NEXT_PUBLIC_WS_URL</td>
+                        <td class="env-val">.env.local</td>
+                        <td class="env-desc">WebSocket URL (ws://localhost:8000 in dev)</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">NEXT_PUBLIC_SUPABASE_URL</td>
+                        <td class="env-val">.env.local</td>
+                        <td class="env-desc">Supabase project URL for frontend auth client</td>
+                    </tr>
+                    <tr>
+                        <td class="env-key">NEXT_PUBLIC_SUPABASE_ANON_KEY</td>
+                        <td class="env-val">.env.local</td>
+                        <td class="env-desc">Supabase anon/public key — safe to expose in frontend</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- COMMANDS -->
+        <section id="commands">
+            <h2><span class="num">12</span> Quick Reference Commands</h2>
+            <p class="section-lead">Everything you need to run, build, and deploy — copy-paste ready.</p>
+
+            <h4>Local development</h4>
+            <pre><span class="c-muted"># Frontend (from codelens-rag/codelens-rag/)</span>
+npm run dev                          <span class="c-muted"># http://localhost:3000</span>
+
+<span class="c-muted"># Backend (from codelens-rag/codelens-rag/backend/)</span>
+conda activate codelens
+uvicorn main:app --reload --port 8000
+
+<span class="c-muted"># All services (Docker Compose)</span>
+docker-compose up -d</pre>
+
+            <h4>Useful shortcuts</h4>
+            <pre><span class="c-muted"># Check FastAPI auto-docs</span>
+open http://localhost:8000/docs       <span class="c-muted"># Swagger UI</span>
+open http://localhost:8000/redoc      <span class="c-muted"># ReDoc</span>
+
+<span class="c-muted"># Grafana dashboard</span>
+open http://localhost:3001            <span class="c-muted"># admin / admin</span>
+
+<span class="c-muted"># Prometheus metrics</span>
+open http://localhost:9090
+
+<span class="c-muted"># Run backend tests</span>
+cd backend && pytest -v</pre>
+        </section>
+
+        <!-- DOMAIN -->
+        <section id="domain">
+            <h2><span class="num">13</span> Domain & DNS Setup (Cloudflare)</h2>
+            <p class="section-lead">Step-by-step to point your domain to Vercel (frontend) and GCP Cloud Run (backend).
+            </p>
+
+            <pre><span class="c-muted"># Cloudflare DNS records to create</span>
+
+<span class="c-muted"># Frontend → Vercel</span>
+Type: CNAME  | Name: @          | Target: cname.vercel-dns.com  | Proxy: ON
+Type: CNAME  | Name: www        | Target: cname.vercel-dns.com  | Proxy: ON
+
+<span class="c-muted"># Backend → GCP Cloud Run</span>
+Type: CNAME  | Name: api        | Target: your-service.run.app  | Proxy: ON
+
+<span class="c-muted"># Result:</span>
+<span class="c-green">https://codelens.yourdomain.com</span>       → Next.js (Vercel)
+<span class="c-green">https://api.codelens.yourdomain.com</span>   → FastAPI (GCP Cloud Run)</pre>
+
+            <div class="callout callout-amber">
+                <span class="callout-icon">🔒</span>
+                <span>In Cloudflare SSL/TLS settings, set encryption mode to <strong>Full (strict)</strong>. This
+                    encrypts traffic both from browser → Cloudflare AND Cloudflare → your origin server. Anything less
+                    is a security downgrade. Cloudflare will auto-renew your SSL certificate — you never need to touch
+                    it manually.</span>
+            </div>
+        </section>
+
+        <!-- DOCKER & KUBERNETES (planned) -->
+        <section id="docker-k8s">
+            <h2><span class="num">14</span> Docker & Kubernetes</h2>
+            <p class="section-lead">Containerisation and orchestration strategy — currently in planning. Moves CodeLens
+                from single-instance Cloud Run to a scalable, self-healing, multi-replica deployment on Kubernetes. This
+                section is a living blueprint for the upcoming infra work.</p>
+
+            <div class="callout callout-cyan">
+                <span class="callout-icon">🚧</span>
+                <span><strong>Status:</strong> Not yet implemented. Section 07 describes the current Cloud Run + Docker
+                    Compose setup. The plan below is what replaces it once ingestion traffic and LLM cost control
+                    requires horizontal autoscaling and workload isolation.</span>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Why Docker + Kubernetes for CodeLens</h4>
+                <pre><span class="c-muted"># Motivation</span>
+<span class="c-amber">Reproducibility</span>   → identical runtime locally, in CI, and in prod (Python 3.12, system libs, tree-sitter grammars)
+<span class="c-amber">Isolation</span>         → RAG ingestion workers separated from chat API — a runaway clone job cannot starve chat requests
+<span class="c-amber">Horizontal scale</span>  → HPA scales chat pods on CPU + custom metric (WebSocket connections) independently from ingestion
+<span class="c-amber">Self-healing</span>      → liveness/readiness probes restart hung ChromaDB clients and stuck Groq streaming calls
+<span class="c-amber">Zero-downtime</span>     → rolling deploys with maxSurge=1, maxUnavailable=0 keep chat sessions alive across releases
+<span class="c-amber">Cost control</span>      → spot/preemptible node pool for ingestion jobs, on-demand pool for chat API</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Dockerfile — FastAPI backend (multi-stage)</h4>
+                <pre><span class="c-muted"># ── Stage 1: builder ──────────────────────────────</span>
+FROM python:3.12-slim AS builder
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git curl && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
+<span class="c-muted"># ── Stage 2: runtime (distroless-style) ───────────</span>
+FROM python:3.12-slim AS runtime
+RUN groupadd -r codelens && useradd -r -g codelens codelens
+WORKDIR /app
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+
+COPY --chown=codelens:codelens ./backend /app
+USER codelens
+
+ENV PYTHONDONTWRITEBYTECODE=<span class="c-green">1</span> \
+    PYTHONUNBUFFERED=<span class="c-green">1</span> \
+    PORT=<span class="c-green">8000</span>
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD [<span class="c-green">"uvicorn"</span>, <span class="c-green">"app.main:app"</span>, <span class="c-green">"--host"</span>, <span class="c-green">"0.0.0.0"</span>, <span class="c-green">"--port"</span>, <span class="c-green">"8000"</span>, <span class="c-green">"--workers"</span>, <span class="c-green">"2"</span>]</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Dockerfile — Next.js frontend (standalone output)</h4>
+                <pre>FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=<span class="c-green">production</span>
+RUN addgroup -S next && adduser -S next -G next
+COPY --from=builder --chown=next:next /app/.next/standalone ./
+COPY --from=builder --chown=next:next /app/.next/static ./.next/static
+COPY --from=builder --chown=next:next /app/public ./public
+USER next
+EXPOSE 3000
+CMD [<span class="c-green">"node"</span>, <span class="c-green">"server.js"</span>]</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Kubernetes topology (GKE Autopilot, asia-south1)</h4>
+                <pre><span class="c-muted"># Namespaces</span>
+codelens-prod        → production workloads
+codelens-staging     → staging (PR preview via ArgoCD)
+codelens-infra       → prometheus, grafana, redis, chromadb
+
+<span class="c-muted"># Workloads</span>
+Deployment/codelens-api         (3 replicas, HPA 3→10, chat + streaming)
+Deployment/codelens-frontend    (2 replicas, HPA 2→6)
+StatefulSet/chromadb            (1 replica, PVC 50Gi SSD, persistent vectors)
+StatefulSet/redis               (1 replica, PVC 5Gi, rate-limit + job queue)
+Job/codelens-ingest             (one-shot per repo ingestion, TTL 1h after completion)
+CronJob/codelens-gc             (nightly — prunes orphaned Chroma collections)
+
+<span class="c-muted"># Networking</span>
+Service/codelens-api            ClusterIP  :8000
+Service/codelens-frontend       ClusterIP  :3000
+Ingress (GCE + Cloudflare)      api.codelens.yourdomain.com  → codelens-api
+                                codelens.yourdomain.com      → codelens-frontend
+NetworkPolicy                   deny-all default, allowlist per-service</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Deployment manifest — FastAPI API</h4>
+                <pre>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codelens-api
+  namespace: codelens-prod
+spec:
+  replicas: <span class="c-green">3</span>
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: codelens-api }
+  template:
+    metadata:
+      labels: { app: codelens-api }
+    spec:
+      serviceAccountName: codelens-api-sa
+      containers:
+        - name: api
+          image: <span class="c-amber">asia-south1-docker.pkg.dev/YOUR_PROJECT/codelens/api</span>:${GIT_SHA}
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - secretRef: { name: codelens-secrets }
+            - configMapRef: { name: codelens-config }
+          resources:
+            requests: { cpu: <span class="c-green">"250m"</span>, memory: <span class="c-green">"512Mi"</span> }
+            limits:   { cpu: <span class="c-green">"1000m"</span>, memory: <span class="c-green">"1Gi"</span> }
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /ready, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [<span class="c-green">"ALL"</span>] }</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>HorizontalPodAutoscaler — chat API</h4>
+                <pre>apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: codelens-api-hpa
+  namespace: codelens-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: codelens-api
+  minReplicas: <span class="c-green">3</span>
+  maxReplicas: <span class="c-green">10</span>
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: <span class="c-green">70</span> }
+    - type: Pods
+      pods:
+        metric: { name: websocket_active_connections }
+        target: { type: AverageValue, averageValue: <span class="c-green">"50"</span> }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: <span class="c-green">300</span>
+      policies: [{ type: Percent, value: 50, periodSeconds: 60 }]</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Secrets & config — External Secrets Operator</h4>
+                <pre><span class="c-muted"># ESO pulls from GCP Secret Manager → K8s Secret, rotated every 1h</span>
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: codelens-secrets
+  namespace: codelens-prod
+spec:
+  refreshInterval: <span class="c-green">1h</span>
+  secretStoreRef: { name: gcp-secret-store, kind: ClusterSecretStore }
+  target: { name: codelens-secrets }
+  data:
+    - secretKey: GROQ_API_KEY
+      remoteRef: { key: codelens-groq-api-key }
+    - secretKey: SUPABASE_JWT_SECRET
+      remoteRef: { key: codelens-supabase-jwt }
+    - secretKey: UPSTASH_REDIS_URL
+      remoteRef: { key: codelens-upstash-url }</pre>
+            </div>
+
+            <div class="security-grid">
+                <div class="sec-card">
+                    <div class="sec-title">Image Security</div>
+                    <div class="sec-body">Distroless-style runtime stage, non-root user, read-only root FS, all
+                        capabilities dropped. Images scanned with Trivy in CI — build fails on HIGH/CRITICAL CVEs.
+                        Signed with cosign, verified by Kyverno admission policy in-cluster.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Node Pools</div>
+                    <div class="sec-body">Two GKE Autopilot workload classes: on-demand for chat API (latency-sensitive)
+                        and Spot for ingestion Jobs (cost-sensitive, interruption-tolerant via idempotent chunking +
+                        resume tokens). Spot saves ~70% on batch ingestion cost.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Persistent Storage</div>
+                    <div class="sec-body">ChromaDB StatefulSet backed by a 50Gi pd-ssd PVC, daily VolumeSnapshot for
+                        point-in-time restore. Redis PVC 5Gi pd-balanced with AOF persistence. Both snapshots retained
+                        7 days in GCS.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Workload Identity</div>
+                    <div class="sec-body">Each Deployment binds a KSA to a GSA via GKE Workload Identity — no static
+                        service account keys anywhere. API pods can read Secret Manager; ingestion pods can write to
+                        GCS; no cross-privilege.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">Observability</div>
+                    <div class="sec-body">Prometheus Operator scrapes /metrics from every pod. Grafana dashboards for
+                        chat latency, WebSocket count, Groq token spend, ingestion throughput. Loki for logs with the
+                        same structured JSON schema from §06.</div>
+                </div>
+                <div class="sec-card">
+                    <div class="sec-title">GitOps Delivery</div>
+                    <div class="sec-body">ArgoCD watches the infra repo's <span class="c-mono">/deploy/overlays/prod</span>
+                        kustomize overlay. GitLab CI only builds + pushes images and bumps the image tag in git —
+                        ArgoCD syncs the cluster. Rollback = git revert.</div>
+                </div>
+            </div>
+
+            <div class="infra-flow" style="margin-top:24px; margin-bottom:16px">
+                <h4>Local dev — Kind cluster parity with prod</h4>
+                <pre><span class="c-muted"># One command to spin up a local cluster that mirrors prod manifests</span>
+kind create cluster --name codelens --config ./deploy/kind.yaml
+kubectl apply -k ./deploy/overlays/local
+skaffold dev --profile=local          <span class="c-muted"># hot reload into the cluster</span>
+
+<span class="c-muted"># Tear down</span>
+kind delete cluster --name codelens</pre>
+            </div>
+
+            <div class="infra-flow" style="margin-bottom:16px">
+                <h4>Migration plan — Cloud Run → GKE</h4>
+                <pre><span class="c-amber">Phase A</span>  Dockerise backend + frontend with multi-stage builds; push to Artifact Registry
+<span class="c-amber">Phase B</span>  Stand up GKE Autopilot cluster + ArgoCD + External Secrets Operator (infra-only)
+<span class="c-amber">Phase C</span>  Port FastAPI Deployment + Service; run alongside Cloud Run, route 5% traffic via Cloudflare
+<span class="c-amber">Phase D</span>  Migrate ChromaDB to StatefulSet with PVC, restore from GCS snapshot of current Chroma data
+<span class="c-amber">Phase E</span>  Introduce HPA + custom WebSocket metric via prometheus-adapter
+<span class="c-amber">Phase F</span>  Move ingestion to K8s Jobs on Spot pool; retire the Cloud Run Job equivalent
+<span class="c-amber">Phase G</span>  Cut remaining traffic to GKE; decommission Cloud Run; update §07 of this doc</pre>
+            </div>
+
+            <div class="callout callout-amber">
+                <span class="callout-icon">⚠️</span>
+                <span><strong>Cost guardrail:</strong> GKE Autopilot bills per pod-second with a cluster management fee.
+                    Before enabling HPA max=10, confirm the budget in GCP Billing alerts. A runaway ingestion loop on a
+                    Spot pool can still spike cost if retry backoff is missing — enforce a global QPS cap on the
+                    ingestion queue.</span>
+            </div>
+        </section>
+
+        <div class="divider"></div>
+        <div
+            style="text-align:center; padding: 20px 0 40px; font-family: var(--font-mono); font-size: 11px; color: var(--muted);">
+            CodeLens RAG · System Design v1.0 · Aakarsh Kumar · 2026<br>
+            <span style="color: var(--cyan);">Update progress bars above as phases complete. Claude Code reads this file
+                before every session.</span>
+        </div>
+
+    </div>
+</body>
+
+</html>
