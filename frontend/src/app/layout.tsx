@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.className} antialiased h-screen overflow-hidden`}
+        className={`${inter.className} antialiased`}
         style={{ background: "#020817", color: "#e2e8f0" }}
       >
         {children}
