@@ -3,6 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from app.config import settings
 from app.routes import ingest, files, chat
@@ -34,9 +37,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 app.include_router(ingest.router)
 app.include_router(files.router)
 app.include_router(chat.router)
+
+
+@app.get("/", tags=["frontend"])
+async def read_index():
+    return FileResponse(os.path.join(static_dir, "index.html"))
+
+
+@app.get("/dashboard", tags=["frontend"])
+async def read_dashboard():
+    return FileResponse(os.path.join(static_dir, "dashboard.html"))
+
+
+@app.get("/ingest-page", tags=["frontend"])
+async def read_ingest_page():
+    return FileResponse(os.path.join(static_dir, "ingest.html"))
 
 
 @app.get("/health", tags=["meta"])

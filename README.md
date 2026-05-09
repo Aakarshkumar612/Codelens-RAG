@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CodeLens RAG - Backend
 
-## Getting Started
+This is the AI-powered codebase exploration backend for CodeLens RAG.
 
-First, run the development server:
+## Architecture
+The project is currently in a "Headless" state. The frontend layer has been removed and is being redesigned.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Components
+- **API:** FastAPI
+- **LLM:** Groq (Llama 3.3)
+- **Vector DB:** ChromaDB
+- **Embeddings:** Sentence-Transformers (Local)
+- **Auth/Data:** Supabase
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Environment:**
+   Create a `.env` file in `backend/` based on `.env.example`.
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Learn More
+3. **Run the API:**
+   ```bash
+   python -m uvicorn app.main:app --reload
+   ```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Layers
+1. **Ingest:** `/ingest` - Process GitHub/GitLab repositories.
+2. **Files:** `/files` - Browse processed files.
+3. **Chat:** `/chat` - RAG-based chat over the codebase.

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CodeLens RAG - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=Syne:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#2f3639",
+                        "secondary": "#ffc56a",
+                        "secondary-fixed": "#ffddaf",
+                        "on-surface-variant": "#bcc8d0",
+                        "on-secondary": "#442c00",
+                        "surface-tint": "#68d3ff",
+                        "on-primary-fixed": "#001f2a",
+                        "primary-container": "#00c8ff",
+                        "tertiary-fixed-dim": "#ffb964",
+                        "tertiary-fixed": "#ffddb9",
+                        "on-tertiary": "#472a00",
+                        "surface-variant": "#2f3639",
+                        "inverse-primary": "#006684",
+                        "on-error": "#690005",
+                        "tertiary-container": "#ffa628",
+                        "surface-bright": "#343a3e",
+                        "on-primary-fixed-variant": "#004d64",
+                        "surface": "#0e1417",
+                        "surface-container-high": "#252b2e",
+                        "secondary-container": "#efa500",
+                        "on-secondary-fixed": "#281800",
+                        "surface-container": "#1a2024",
+                        "on-primary": "#003546",
+                        "on-error-container": "#ffdad6",
+                        "primary": "#99deff",
+                        "secondary-fixed-dim": "#ffba44",
+                        "primary-fixed": "#bee9ff",
+                        "on-primary-container": "#005068",
+                        "inverse-on-surface": "#2b3135",
+                        "inverse-surface": "#dde3e8",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#090f12",
+                        "background": "#0e1417",
+                        "tertiary": "#ffcc93",
+                        "on-tertiary-fixed-variant": "#663e00",
+                        "on-tertiary-container": "#6a4000",
+                        "primary-fixed-dim": "#68d3ff",
+                        "on-secondary-container": "#5f3f00",
+                        "outline-variant": "#3c484f",
+                        "surface-container-low": "#161c20",
+                        "outline": "#86939a",
+                        "on-secondary-fixed-variant": "#614000",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-background": "#dde3e8",
+                        "surface-dim": "#0e1417",
+                        "on-surface": "#dde3e8",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container_max": "1440px",
+                        "margin": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Syne"],
+                        "body-md": ["Inter"],
+                        "display-lg-mobile": ["Syne"],
+                        "code-md": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "display-xl": ["Syne"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "label-caps": ["11px", { "lineHeight": "1", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "display-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "800" }],
+                        "code-md": ["14px", { "lineHeight": "1.5", "fontWeight": "500" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "display-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+        }
+        /* Cyber-Industrial Grain Overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        /* Custom Scrollbar for Terminal aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: theme('colors.surface-container');
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.outline-variant');
+            border-radius: theme('borderRadius.DEFAULT');
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.primary');
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex font-body-md text-body-md">
+<!-- Left Sidebar (SideNavBar) -->
+<aside class="bg-surface-container dark:bg-surface-container text-primary dark:text-primary font-code-md text-code-md Labels: font-label-caps text-label-caps fixed left-0 top-0 h-screen w-[240px] z-40 border-r border-outline-variant/30 flat no shadows flex flex-col h-full py-6 shrink-0">
+<!-- Header -->
+<div class="px-4 mb-6">
+<h1 class="font-display-lg text-primary tracking-tighter mb-4">CodeLens RAG</h1>
+<div class="flex items-center gap-3 bg-surface-container-high p-3 rounded border border-outline-variant/30">
+<div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center border border-primary/30">
+<span class="material-symbols-outlined text-primary" data-icon="account_circle" style="font-size: 18px;">account_circle</span>
+</div>
+<div>
+<div class="font-bold text-on-surface text-code-sm">DevInstance_01</div>
+<div class="text-on-surface-variant font-code-sm" style="font-size: 10px;">Local Cluster</div>
+</div>
+</div>
+</div>
+<!-- CTA Action -->
+<div class="px-4 mb-6">
+<button class="w-full bg-primary text-on-primary-fixed font-bold py-2 px-4 rounded flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(0,200,255,0.25)] transition-all">
+<span class="material-symbols-outlined" data-icon="add" style="font-size: 18px;">add</span>
+                Index Repository
+            </button>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 overflow-y-auto">
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 bg-primary/10 text-primary border-l-2 border-primary px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>Workspace</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Chat History</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span>File Tree</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="schema">schema</span>
+<span>Pipelines</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Footer Links -->
+<div class="mt-auto px-4 space-y-1">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-2 text-code-sm rounded transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="menu_book" style="font-size: 16px;">menu_book</span>
+<span>Docs</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-2 text-code-sm rounded transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats" style="font-size: 16px;">query_stats</span>
+<span>System status</span>
+</a>
+</div>
+</aside>
+<!-- Main Workspace Area -->
+<main class="ml-[240px] flex-1 flex h-full">
+<!-- Center Panel: Chat Interface -->
+<section class="flex-1 flex flex-col border-r border-outline-variant/30 bg-surface-dim relative">
+<!-- Chat Top Bar -->
+<header class="h-16 flex items-center justify-between px-6 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-md z-10 sticky top-0">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+<h2 class="font-code-md text-on-surface font-bold">Session: core-auth-refactor</h2>
+<span class="px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 rounded text-code-sm font-code-sm">Active</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="ios_share">ios_share</span></button>
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span></button>
+</div>
+</header>
+<!-- Chat Scrollable Area -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="max-w-[80%] bg-surface-container-high border border-outline-variant/30 p-4 rounded-lg rounded-tr-none shadow-sm">
+<p class="font-body-md text-on-surface">Can you explain the current JWT validation logic in the `auth/middleware.ts` file? I need to understand how we are handling expired tokens before I implement the refresh flow.</p>
+</div>
+</div>
+<!-- AI Response Card (Glassmorphism) -->
+<div class="flex justify-start">
+<div class="max-w-[85%] bg-[#152035]/80 backdrop-blur-[12px] border border-primary p-5 rounded-lg rounded-tl-none shadow-[0_0_20px_rgba(0,200,255,0.05)]">
+<div class="flex items-center gap-2 mb-3 text-primary font-code-md">
+<span class="material-symbols-outlined" data-icon="smart_toy" style="font-size: 18px;">smart_toy</span>
+<span class="font-bold">CodeLens AI</span>
+</div>
+<p class="font-body-md text-on-surface mb-4">The current JWT validation in `auth/middleware.ts` uses the `jsonwebtoken` library to verify incoming requests. Here is the breakdown of the logic:</p>
+<!-- Embedded File Tag -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant/50 p-3 rounded mb-4 font-code-sm">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-outline" data-icon="description" style="font-size: 16px;">description</span>
+<span>src/auth/middleware.ts</span>
+</div>
+<button class="text-primary hover:text-primary-container flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" data-icon="visibility" style="font-size: 14px;">visibility</span>
+                                View Code
+                            </button>
+</div>
+<ul class="list-disc list-inside space-y-2 text-on-surface-variant font-body-sm mb-4">
+<li>It extracts the token from the `Authorization` header (Bearer schema).</li>
+<li>Calls `jwt.verify()` with the `JWT_SECRET`.</li>
+<li>If validation fails specifically due to expiration (`TokenExpiredError`), it immediately throws a `401 Unauthorized` without attempting any refresh logic currently.</li>
+</ul>
+<p class="font-body-md text-on-surface">To implement a refresh flow, you will need to intercept this `TokenExpiredError` and check for a valid refresh token in the request cookies or body before failing the request entirely.</p>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="max-w-[80%] bg-surface-container-high border border-outline-variant/30 p-4 rounded-lg rounded-tr-none shadow-sm">
+<p class="font-body-md text-on-surface">Show me the specific block where `TokenExpiredError` is caught.</p>
+</div>
+</div>
+<!-- Loading Indicator -->
+<div class="flex justify-start">
+<div class="flex items-center gap-2 text-primary font-code-sm">
+<span class="material-symbols-outlined animate-spin" data-icon="sync">sync</span>
+                         Searching index...
+                     </div>
+</div>
+</div>
+<!-- Chat Bottom Input Bar -->
+<div class="p-4 bg-surface/90 backdrop-blur-md border-t border-outline-variant/30 sticky bottom-0">
+<div class="flex items-center gap-2 bg-[#060B18] border border-outline-variant/50 rounded p-2 focus-within:border-primary focus-within:shadow-[0_0_10px_rgba(0,200,255,0.1)] transition-all">
+<!-- Repo Selector Chip -->
+<button class="flex items-center gap-1 bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-code-sm text-on-surface hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="folder_open" style="font-size: 14px;">folder_open</span>
+                        repo-core
+                        <span class="material-symbols-outlined" data-icon="arrow_drop_down" style="font-size: 14px;">arrow_drop_down</span>
+</button>
+<input class="flex-1 bg-transparent border-none text-on-surface font-code-md placeholder:text-outline-variant focus:ring-0 px-2" placeholder="Ask about your codebase..." type="text"/>
+<button class="p-2 text-outline-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+<button class="p-2 bg-primary text-on-primary rounded hover:shadow-[0_0_15px_rgba(0,200,255,0.3)] transition-all">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+<!-- Status Footer -->
+<div class="flex justify-between items-center mt-2 px-2">
+<div class="flex items-center gap-1 text-code-sm text-outline-variant">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_5px_rgba(0,200,255,0.8)] animate-pulse"></div>
+                        WebSocket: Connected
+                    </div>
+<div class="text-code-sm text-outline-variant">
+                        Press <kbd class="bg-surface-container px-1 rounded border border-outline-variant/30 font-code-sm">Enter</kbd> to send
+                    </div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Code Viewer -->
+<section class="w-[600px] flex flex-col bg-[#060B18] shrink-0 border-l border-outline-variant/30 z-20">
+<!-- Code Viewer Header -->
+<header class="h-16 flex items-center justify-between px-4 border-b border-outline-variant/30 bg-surface-container">
+<!-- Breadcrumbs -->
+<div class="flex items-center text-code-sm font-code-sm text-on-surface-variant overflow-hidden whitespace-nowrap">
+<span class="text-primary cursor-pointer hover:underline">repo-core</span>
+<span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
+<span class="cursor-pointer hover:text-on-surface">src</span>
+<span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
+<span class="cursor-pointer hover:text-on-surface">auth</span>
+<span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
+<span class="text-on-surface font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-secondary" data-icon="description" style="font-size: 14px;">description</span>
+                        middleware.ts
+                    </span>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-outline-variant hover:text-primary hover:bg-primary/10 rounded transition-colors" title="Copy Code">
+<span class="material-symbols-outlined" data-icon="content_copy" style="font-size: 18px;">content_copy</span>
+</button>
+<button class="p-1.5 text-outline-variant hover:text-primary hover:bg-primary/10 rounded transition-colors" title="Open in GitHub">
+<span class="material-symbols-outlined" data-icon="open_in_new" style="font-size: 18px;">open_in_new</span>
+</button>
+</div>
+</header>
+<!-- Editor Area -->
+<div class="flex-1 overflow-auto p-4 font-code-sm text-code-sm bg-[#060B18] text-on-surface relative leading-relaxed">
+<!-- Line Numbers Container -->
+<div class="absolute left-0 top-0 bottom-0 w-10 border-r border-outline-variant/20 bg-[#060B18] text-outline text-right pr-2 pt-4 select-none flex flex-col space-y-1">
+<span>12</span>
+<span>13</span>
+<span>14</span>
+<span>15</span>
+<span class="text-primary font-bold">16</span>
+<span class="text-primary font-bold">17</span>
+<span class="text-primary font-bold">18</span>
+<span class="text-primary font-bold">19</span>
+<span>20</span>
+<span>21</span>
+<span>22</span>
+</div>
+<!-- Code Content -->
+<div class="ml-8 pl-4 pt-0 select-text whitespace-pre overflow-x-auto space-y-1 pb-4">
+<span class="text-[#ff7b72]">export const</span> authenticate <span class="text-[#79c0ff]">=</span> (req: Request, res: Response, next: NextFunction) <span class="text-[#79c0ff]">=&gt;</span> {
+  <span class="text-[#ff7b72]">const</span> authHeader = req.headers.<span class="text-[#79c0ff]">authorization</span>;
+  
+  <span class="text-[#ff7b72]">if</span> (!authHeader || !authHeader.<span class="text-[#d2a8ff]">startsWith</span>(<span class="text-[#a5d6ff]">'Bearer '</span>)) {
+    <span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">401</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Unauthorized'</span> });
+  }
+
+<div class="bg-primary/10 border-l-2 border-primary -ml-4 pl-4 w-full block py-0.5"><span class="text-[#ff7b72]">const</span> token = authHeader.<span class="text-[#d2a8ff]">split</span>(<span class="text-[#a5d6ff]">' '</span>)[<span class="text-[#79c0ff]">1</span>];
+<span class="text-[#ff7b72]">try</span> {
+  <span class="text-[#ff7b72]">const</span> decoded = jwt.<span class="text-[#d2a8ff]">verify</span>(token, process.env.<span class="text-[#79c0ff]">JWT_SECRET</span>);
+  req.user = decoded;
+  <span class="text-[#d2a8ff]">next</span>();</div>} <span class="text-[#ff7b72]">catch</span> (error) {
+  <span class="text-[#ff7b72]">if</span> (error.name === <span class="text-[#a5d6ff]">'TokenExpiredError'</span>) {
+    <span class="text-[#8b949e]">// TODO: Implement refresh token logic here</span>
+<span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">401</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Token Expired'</span> });
+  }
+  <span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">403</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Forbidden'</span> });
+}
+                </div>
+</div>
+</section>
+</main>
+</body></html>

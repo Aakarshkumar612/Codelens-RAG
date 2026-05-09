@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Index Repository - CodeLens RAG</title>
+<!-- Google Fonts: Inter, Syne, JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#2f3639",
+                    "secondary": "#ffc56a",
+                    "secondary-fixed": "#ffddaf",
+                    "on-surface-variant": "#bcc8d0",
+                    "on-secondary": "#442c00",
+                    "surface-tint": "#68d3ff",
+                    "on-primary-fixed": "#001f2a",
+                    "primary-container": "#00c8ff",
+                    "tertiary-fixed-dim": "#ffb964",
+                    "tertiary-fixed": "#ffddb9",
+                    "on-tertiary": "#472a00",
+                    "surface-variant": "#2f3639",
+                    "inverse-primary": "#006684",
+                    "on-error": "#690005",
+                    "tertiary-container": "#ffa628",
+                    "surface-bright": "#343a3e",
+                    "on-primary-fixed-variant": "#004d64",
+                    "surface": "#0e1417",
+                    "surface-container-high": "#252b2e",
+                    "secondary-container": "#efa500",
+                    "on-secondary-fixed": "#281800",
+                    "surface-container": "#1a2024",
+                    "on-primary": "#003546",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#99deff",
+                    "secondary-fixed-dim": "#ffba44",
+                    "primary-fixed": "#bee9ff",
+                    "on-primary-container": "#005068",
+                    "inverse-on-surface": "#2b3135",
+                    "inverse-surface": "#dde3e8",
+                    "error-container": "#93000a",
+                    "surface-container-lowest": "#090f12",
+                    "background": "#0e1417",
+                    "tertiary": "#ffcc93",
+                    "on-tertiary-fixed-variant": "#663e00",
+                    "on-tertiary-container": "#6a4000",
+                    "primary-fixed-dim": "#68d3ff",
+                    "on-secondary-container": "#5f3f00",
+                    "outline-variant": "#3c484f",
+                    "surface-container-low": "#161c20",
+                    "outline": "#86939a",
+                    "on-secondary-fixed-variant": "#614000",
+                    "on-tertiary-fixed": "#2b1700",
+                    "on-background": "#dde3e8",
+                    "surface-dim": "#0e1417",
+                    "on-surface": "#dde3e8",
+                    "error": "#ffb4ab"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "container_max": "1440px",
+                    "margin": "24px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "code-sm": ["JetBrains Mono"],
+                    "label-caps": ["JetBrains Mono"],
+                    "display-lg": ["Syne"],
+                    "body-md": ["Inter"],
+                    "display-lg-mobile": ["Syne"],
+                    "code-md": ["JetBrains Mono"],
+                    "body-sm": ["Inter"],
+                    "display-xl": ["Syne"]
+            },
+            "fontSize": {
+                    "code-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                    "label-caps": ["11px", { "lineHeight": "1", "fontWeight": "700" }],
+                    "display-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "800" }],
+                    "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                    "display-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "800" }],
+                    "code-md": ["14px", { "lineHeight": "1.5", "fontWeight": "500" }],
+                    "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                    "display-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            /* 3% opacity grain/noise texture overlay simulation */
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        
+        .glass-card {
+            background-color: rgba(21, 32, 53, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        
+        .input-navy {
+            background-color: #060B18;
+        }
+        
+        .glow-hover:hover {
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.25);
+        }
+        
+        .input-focus:focus {
+            box-shadow: inset 0 0 8px rgba(0, 200, 255, 0.2);
+            border-color: theme('colors.primary');
+        }
+        
+        /* Spin Animation */
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 2s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md flex h-screen overflow-hidden selection:bg-primary/30 selection:text-primary">
+<!-- Shared Component: SideNavBar -->
+<aside class="hidden md:flex flex-col h-full py-6 fixed left-0 top-0 w-[240px] z-40 bg-surface-container border-r border-outline-variant/30">
+<!-- Header -->
+<div class="px-4 mb-8">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">deployed_code</span>
+</div>
+<div>
+<h2 class="font-code-md text-code-md text-primary font-bold">DevInstance_01</h2>
+<p class="font-code-sm text-code-sm text-on-surface-variant">Local Cluster</p>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-primary/10 border border-primary text-primary font-code-md text-code-md py-2 px-4 rounded-lg flex items-center justify-center gap-2 glow-hover transition-all duration-300">
+<span class="material-symbols-outlined text-sm">add</span>
+                Index Repository
+            </button>
+</div>
+<!-- Navigation Tabs -->
+<nav class="flex-1 flex flex-col gap-1 font-code-md text-code-md">
+<a class="flex items-center gap-3 bg-primary/10 text-primary border-l-2 border-primary px-4 py-3 cursor-pointer active:opacity-80 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+                Workspace
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">history</span>
+                Chat History
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+                File Tree
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">schema</span>
+                Pipelines
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-4 py-3 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</nav>
+<!-- Footer Tabs -->
+<div class="mt-auto px-4 flex flex-col gap-1 font-code-sm text-code-sm border-t border-outline-variant/30 pt-4">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-2 py-2 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-sm">menu_book</span>
+                Docs
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 px-2 py-2 cursor-pointer active:opacity-80 hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-sm">query_stats</span>
+                System status
+            </a>
+</div>
+</aside>
+<!-- Main Workspace Area -->
+<div class="flex-1 flex flex-col md:ml-[240px] h-screen overflow-y-auto">
+<!-- Shared Component: TopNavBar -->
+<header class="flex justify-between items-center w-full px-margin h-16 max-w-container_max mx-auto bg-surface/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30 shadow-[0_0_20px_rgba(0,200,255,0.1)] shrink-0">
+<!-- Brand Logo -->
+<div class="font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase tracking-tighter">
+                CodeLens RAG
+            </div>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-center gap-8 font-body-md text-body-md">
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95 transition-transform" href="#">Repositories</a>
+<a class="text-primary font-bold border-b-2 border-primary pb-1 active:scale-95 transition-transform" href="#">Index</a>
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95 transition-transform" href="#">Analytics</a>
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95 transition-transform" href="#">Docs</a>
+</nav>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-4">
+<span class="hidden md:inline-block font-code-sm text-code-sm text-on-surface-variant border border-outline-variant rounded px-2 py-1 bg-surface-container-lowest">
+                    v2.4.0-stable
+                </span>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="bg-primary text-on-primary font-code-sm text-code-sm px-4 py-2 rounded-lg font-bold glow-hover transition-all duration-300 active:scale-95">
+                    New Analysis
+                </button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 w-full max-w-container_max mx-auto px-margin py-8 md:py-12 flex flex-col gap-8">
+<!-- Page Header -->
+<div class="flex flex-col gap-2">
+<h1 class="font-display-xl text-display-xl text-on-surface">Index a Repository</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+                    Connect a remote GitHub repository to build an Abstract Syntax Tree (AST) and generate deep semantic embeddings for natural language querying.
+                </p>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Left Column: Form Setup -->
+<div class="lg:col-span-2 flex flex-col gap-6">
+<div class="glass-card rounded-xl border border-surface p-6 shadow-lg">
+<form class="flex flex-col gap-6">
+<!-- URL Input -->
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-primary uppercase tracking-wider">GitHub Repository URL</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">link</span>
+<input class="w-full input-navy border border-outline-variant/50 rounded-lg py-3 pl-12 pr-4 font-code-md text-code-md text-on-surface placeholder:text-on-surface-variant/50 input-focus outline-none transition-all duration-300" placeholder="https://github.com/organization/repository" type="text"/>
+</div>
+</div>
+<!-- Dual Inputs: Branch & Chunk Size -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-primary uppercase tracking-wider">Target Branch</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">call_split</span>
+<select class="w-full input-navy border border-outline-variant/50 rounded-lg py-3 pl-12 pr-10 font-code-md text-code-md text-on-surface appearance-none input-focus outline-none transition-all duration-300">
+<option>main</option>
+<option>master</option>
+<option>develop</option>
+<option>staging</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-primary uppercase tracking-wider">Vector Chunk Size</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">data_object</span>
+<input class="w-full input-navy border border-outline-variant/50 rounded-lg py-3 pl-12 pr-4 font-code-md text-code-md text-on-surface input-focus outline-none transition-all duration-300" type="number" value="1024"/>
+</div>
+</div>
+</div>
+<!-- Parsing Options -->
+<div class="flex flex-col gap-3">
+<label class="font-label-caps text-label-caps text-primary uppercase tracking-wider">Indexing Parameters</label>
+<div class="flex flex-col gap-3 bg-surface-container-lowest border border-outline-variant/30 rounded-lg p-4">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant group-hover:border-primary transition-colors">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="absolute inset-0 bg-primary opacity-0 peer-checked:opacity-100 transition-opacity rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed text-[14px] font-bold">check</span>
+</div>
+</div>
+<span class="font-code-md text-code-md text-on-surface-variant group-hover:text-on-surface transition-colors">Include documentation files (*.md, *.rst)</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center w-5 h-5 rounded border border-outline-variant group-hover:border-primary transition-colors">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="absolute inset-0 bg-primary opacity-0 peer-checked:opacity-100 transition-opacity rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed text-[14px] font-bold">check</span>
+</div>
+</div>
+<span class="font-code-md text-code-md text-on-surface-variant group-hover:text-on-surface transition-colors">Index unit and integration tests</span>
+</label>
+</div>
+</div>
+<!-- Submit Button -->
+<div class="pt-4 mt-2 border-t border-outline-variant/30">
+<button class="w-full bg-primary text-on-primary-fixed font-code-md text-code-md font-bold py-4 rounded-lg flex items-center justify-center gap-3 glow-hover transition-all duration-300 active:scale-[0.98]" type="button">
+<span class="material-symbols-outlined">rocket_launch</span>
+                                    START INDEXING PIPELINE
+                                </button>
+</div>
+</form>
+</div>
+</div>
+<!-- Right Column: Progress UI -->
+<div class="lg:col-span-1">
+<div class="glass-card rounded-xl border border-primary/50 p-6 shadow-lg h-full flex flex-col relative overflow-hidden">
+<!-- Top Active Glow Decorator -->
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-primary animate-pulse">memory</span>
+<h3 class="font-code-md text-code-md text-primary font-bold uppercase">Pipeline Status</h3>
+</div>
+<!-- Stepper -->
+<div class="flex flex-col gap-6 relative flex-1">
+<!-- Connecting Line -->
+<div class="absolute left-[15px] top-4 bottom-4 w-px bg-outline-variant/30"></div>
+<!-- Step 1: Complete -->
+<div class="flex items-start gap-4 relative z-10">
+<div class="w-8 h-8 rounded-full bg-surface-container border border-primary flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,200,255,0.2)]">
+<span class="material-symbols-outlined text-primary text-[18px]">check</span>
+</div>
+<div class="flex flex-col pt-1 w-full">
+<div class="flex justify-between items-center w-full mb-1">
+<span class="font-code-md text-code-md text-on-surface">Cloning Repository</span>
+<span class="font-code-sm text-code-sm text-primary">100%</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+</div>
+</div>
+<!-- Step 2: In Progress -->
+<div class="flex items-start gap-4 relative z-10">
+<div class="w-8 h-8 rounded-full bg-surface-container border border-primary flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(0,200,255,0.4)] relative">
+<div class="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin-slow"></div>
+<span class="material-symbols-outlined text-primary text-[16px]">account_tree</span>
+</div>
+<div class="flex flex-col pt-1 w-full">
+<div class="flex justify-between items-center w-full mb-1">
+<span class="font-code-md text-code-md text-primary font-bold">Parsing AST</span>
+<span class="font-code-sm text-code-sm text-primary animate-pulse">45%</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[45%] shadow-[0_0_10px_rgba(0,200,255,0.5)]"></div>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant mt-2">Processing controllers...</span>
+</div>
+</div>
+<!-- Step 3: Pending -->
+<div class="flex items-start gap-4 relative z-10 opacity-50">
+<div class="w-8 h-8 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">scatter_plot</span>
+</div>
+<div class="flex flex-col pt-1 w-full">
+<div class="flex justify-between items-center w-full mb-1">
+<span class="font-code-md text-code-md text-on-surface-variant">Generating Embeddings</span>
+<span class="font-code-sm text-code-sm text-outline-variant">0%</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden"></div>
+</div>
+</div>
+<!-- Step 4: Pending -->
+<div class="flex items-start gap-4 relative z-10 opacity-50">
+<div class="w-8 h-8 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">database</span>
+</div>
+<div class="flex flex-col pt-1 w-full">
+<div class="flex justify-between items-center w-full mb-1">
+<span class="font-code-md text-code-md text-on-surface-variant">Storing in ChromaDB</span>
+</div>
+</div>
+</div>
+<!-- Step 5: Pending -->
+<div class="flex items-start gap-4 relative z-10 opacity-50">
+<div class="w-8 h-8 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">flag</span>
+</div>
+<div class="flex flex-col pt-1 w-full">
+<div class="flex justify-between items-center w-full mb-1">
+<span class="font-code-md text-code-md text-on-surface-variant">Ready</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Shared Component: Footer -->
+<footer class="mt-auto w-full max-w-container_max mx-auto border-t border-outline-variant/20 bg-surface-container-lowest flex flex-col md:flex-row justify-between items-center px-margin py-8 shrink-0">
+<div class="font-display-lg text-on-surface mb-4 md:mb-0">
+<span class="font-code-sm text-code-sm text-on-surface-variant">© 2024 CodeLens RAG. Engineered for High-Performance Analysis.</span>
+</div>
+<div class="flex items-center gap-6 font-code-sm text-code-sm text-on-surface-variant">
+<a class="hover:text-primary transition-colors" href="#">Security</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms</a>
+<a class="hover:text-primary transition-colors" href="#">GitHub</a>
+<a class="hover:text-primary transition-colors" href="#">API</a>
+</div>
+</footer>
+</div>
+</body></html>

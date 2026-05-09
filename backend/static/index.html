@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CodeLens RAG</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400&amp;family=JetBrains+Mono:wght@500;700&amp;family=Syne:wght@800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#2f3639",
+                        "secondary": "#ffc56a",
+                        "secondary-fixed": "#ffddaf",
+                        "on-surface-variant": "#bcc8d0",
+                        "on-secondary": "#442c00",
+                        "surface-tint": "#68d3ff",
+                        "on-primary-fixed": "#001f2a",
+                        "primary-container": "#00c8ff",
+                        "tertiary-fixed-dim": "#ffb964",
+                        "tertiary-fixed": "#ffddb9",
+                        "on-tertiary": "#472a00",
+                        "surface-variant": "#2f3639",
+                        "inverse-primary": "#006684",
+                        "on-error": "#690005",
+                        "tertiary-container": "#ffa628",
+                        "surface-bright": "#343a3e",
+                        "on-primary-fixed-variant": "#004d64",
+                        "surface": "#0e1417",
+                        "surface-container-high": "#252b2e",
+                        "secondary-container": "#efa500",
+                        "on-secondary-fixed": "#281800",
+                        "surface-container": "#1a2024",
+                        "on-primary": "#003546",
+                        "on-error-container": "#ffdad6",
+                        "primary": "#99deff",
+                        "secondary-fixed-dim": "#ffba44",
+                        "primary-fixed": "#bee9ff",
+                        "on-primary-container": "#005068",
+                        "inverse-on-surface": "#2b3135",
+                        "inverse-surface": "#dde3e8",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#090f12",
+                        "background": "#0e1417",
+                        "tertiary": "#ffcc93",
+                        "on-tertiary-fixed-variant": "#663e00",
+                        "on-tertiary-container": "#6a4000",
+                        "primary-fixed-dim": "#68d3ff",
+                        "on-secondary-container": "#5f3f00",
+                        "outline-variant": "#3c484f",
+                        "surface-container-low": "#161c20",
+                        "outline": "#86939a",
+                        "on-secondary-fixed-variant": "#614000",
+                        "on-tertiary-fixed": "#2b1700",
+                        "on-background": "#dde3e8",
+                        "surface-dim": "#0e1417",
+                        "on-surface": "#dde3e8",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container_max": "1440px",
+                        "margin": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "code-sm": [
+                            "JetBrains Mono"
+                        ],
+                        "label-caps": [
+                            "JetBrains Mono"
+                        ],
+                        "display-lg": [
+                            "Syne"
+                        ],
+                        "body-md": [
+                            "Inter"
+                        ],
+                        "display-lg-mobile": [
+                            "Syne"
+                        ],
+                        "code-md": [
+                            "JetBrains Mono"
+                        ],
+                        "body-sm": [
+                            "Inter"
+                        ],
+                        "display-xl": [
+                            "Syne"
+                        ]
+                    },
+                    "fontSize": {
+                        "code-sm": [
+                            "12px",
+                            {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "0.02em",
+                                "fontWeight": "500"
+                            }
+                        ],
+                        "label-caps": [
+                            "11px",
+                            {
+                                "lineHeight": "1",
+                                "fontWeight": "700"
+                            }
+                        ],
+                        "display-lg": [
+                            "32px",
+                            {
+                                "lineHeight": "1.2",
+                                "fontWeight": "800"
+                            }
+                        ],
+                        "body-md": [
+                            "16px",
+                            {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "display-lg-mobile": [
+                            "24px",
+                            {
+                                "lineHeight": "1.2",
+                                "fontWeight": "800"
+                            }
+                        ],
+                        "code-md": [
+                            "14px",
+                            {
+                                "lineHeight": "1.5",
+                                "fontWeight": "500"
+                            }
+                        ],
+                        "body-sm": [
+                            "14px",
+                            {
+                                "lineHeight": "1.5",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "display-xl": [
+                            "48px",
+                            {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "800"
+                            }
+                        ]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.03;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+        .mesh-gradient {
+            background: radial-gradient(at 0% 0%, rgba(0, 200, 255, 0.15) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, rgba(0, 102, 132, 0.15) 0px, transparent 50%);
+        }
+        .grid-bg {
+            background-size: 24px 24px;
+            background-image: linear-gradient(to right, rgba(134, 147, 154, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(134, 147, 154, 0.05) 1px, transparent 1px);
+        }
+        .glass-panel {
+            background: rgba(21, 32, 53, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid #152035;
+        }
+        .glass-panel:hover {
+            border-color: #00c8ff;
+            box-shadow: 0 0 20px rgba(0,200,255,0.25);
+        }
+        .cyan-glow:hover {
+            box-shadow: 0 0 20px rgba(0,200,255,0.25);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md relative">
+<div class="noise-overlay"></div>
+<!-- Section A: Top NavBar -->
+<header class="bg-surface/80 backdrop-blur-md dark:bg-surface/80 text-primary dark:text-primary font-body-md text-body-md docked full-width top-0 sticky z-50 border-b border-outline-variant/30 shadow-[0_0_20px_rgba(0,200,255,0.1)]">
+<div class="flex justify-between items-center w-full px-margin h-16 max-w-container_max mx-auto">
+<div class="flex items-center gap-4">
+<span class="font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase tracking-tighter">CodeLens RAG</span>
+<span class="font-code-sm text-code-sm text-secondary border border-secondary/30 bg-secondary/10 px-2 py-0.5 rounded">v2.4.0-stable</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95" href="#">Repositories</a>
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95" href="#">Index</a>
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95" href="#">Analytics</a>
+<a class="text-on-surface-variant font-medium hover:text-on-surface hover:text-primary hover:shadow-[0_0_15px_rgba(0,200,255,0.2)] transition-all duration-300 active:scale-95" href="#">Docs</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-variant/50 transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-variant/50 transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="bg-primary-container text-[#000000] font-code-md text-code-md px-4 py-2 rounded-[4px] cyan-glow transition-all active:scale-95">
+                    New Analysis
+                </button>
+</div>
+</div>
+</header>
+<main class="flex-grow w-full relative z-10">
+<!-- Section B: Hero -->
+<section class="min-h-screen relative flex items-center justify-center overflow-hidden pt-16 mesh-gradient grid-bg px-margin">
+<div class="max-w-container_max mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<div class="flex flex-col gap-6 z-10">
+<h1 class="font-display-xl text-display-xl text-on-surface">
+                        Ask anything about <br/>
+<span class="text-primary relative inline-block">
+                            any codebase.
+                            <span class="absolute bottom-0 left-0 w-full h-1 bg-primary"></span>
+</span>
+</h1>
+<div class="glass-panel p-4 rounded-lg mt-8 font-code-md text-code-md text-primary max-w-lg">
+<span class="text-secondary opacity-70">~</span> <span class="opacity-80">querying repository structure...</span><br/>
+<span class="text-secondary">~</span> <span class="animate-pulse">_</span>
+</div>
+</div>
+<div class="relative z-10 w-full aspect-[4/3] glass-panel rounded-xl flex items-center justify-center overflow-hidden">
+<div class="w-full h-full bg-[url('https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&amp;w=2070&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-30" data-alt="A highly complex, abstract visualization of a codebase floating in a deep navy 3D space. Intricate glowing cyan and amber lines connect floating modules, representing data flow and relationships in a high-tech, cyber-industrial aesthetic. The scene is illuminated by soft, ambient glassmorphism lighting, emphasizing precision and computational depth."></div>
+<div class="absolute inset-0 flex items-center justify-center p-8">
+<div class="w-full h-full border border-outline-variant/30 rounded-lg bg-surface/50 backdrop-blur-sm p-4 flex flex-col gap-4">
+<div class="w-full h-6 bg-surface-container rounded border border-outline-variant/50"></div>
+<div class="flex-grow flex gap-4">
+<div class="w-1/3 h-full bg-surface-container rounded border border-outline-variant/50"></div>
+<div class="w-2/3 h-full bg-surface-container rounded border border-outline-variant/50"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section C: Stats Bar -->
+<section class="py-12 border-y border-outline-variant/20 bg-surface-container-lowest">
+<div class="max-w-container_max mx-auto px-margin grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">750</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Tok/Sec</span>
+</div>
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">70B</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Parameters</span>
+</div>
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">&lt;50ms</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Latency</span>
+</div>
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">99.9%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Uptime</span>
+</div>
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">10k+</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Repos</span>
+</div>
+<div class="flex flex-col gap-2 items-center text-center">
+<span class="font-code-md text-display-lg text-primary">0</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Lock-in</span>
+</div>
+</div>
+</section>
+<!-- Section F: Feature Cards Grid -->
+<section class="py-24 px-margin max-w-container_max mx-auto flex flex-col gap-12">
+<h2 class="font-display-lg text-display-lg text-on-surface text-center">Deep Dive Architecture</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="w-12 h-12 bg-surface-container rounded border border-outline-variant/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">data_object</span>
+</div>
+<h3 class="font-code-md text-code-md text-on-surface">Multi-Source Ingestion</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Seamlessly pull code from GitHub, GitLab, or local directories. Automated AST parsing and chunking for optimal embedding.</p>
+<div class="flex gap-2 mt-auto">
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-secondary">AST</span>
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-primary">Git</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="w-12 h-12 bg-surface-container rounded border border-outline-variant/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">forum</span>
+</div>
+<h3 class="font-code-md text-code-md text-on-surface">RAG-Powered Chat</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Context-aware conversations leveraging vector search across your entire codebase for hyper-relevant responses.</p>
+<div class="flex gap-2 mt-auto">
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-secondary">Vector</span>
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-primary">LLM</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="w-12 h-12 bg-surface-container rounded border border-outline-variant/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">ads_click</span>
+</div>
+<h3 class="font-code-md text-code-md text-on-surface">Click-to-Query</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Select any function or class in the explorer and instantly generate an explanation or test suite.</p>
+<div class="flex gap-2 mt-auto">
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-secondary">UI</span>
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 rounded border border-outline-variant/30 text-primary">Action</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Section Q: Footer -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest text-primary dark:text-primary font-body-sm text-body-sm full-width bottom-0 mt-auto border-t border-outline-variant/20 py-8 px-margin">
+<div class="max-w-container_max mx-auto flex flex-col md:flex-row justify-between items-center w-full gap-8">
+<div class="flex flex-col gap-2 items-center md:items-start">
+<span class="font-display-lg text-on-surface">CodeLens</span>
+<p class="text-on-surface-variant">© 2024 CodeLens RAG. Engineered for High-Performance Analysis.</p>
+</div>
+<nav class="flex gap-6 font-code-sm text-code-sm">
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">GitHub</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">API</a>
+</nav>
+</div>
+</footer>
+</body></html>

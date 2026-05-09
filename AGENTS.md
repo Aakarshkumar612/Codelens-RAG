@@ -1,5 +1,10 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# CodeLens RAG Agent Guidelines
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+This project focuses on a RAG (Retrieval-Augmented Generation) backend using FastAPI, ChromaDB, and Groq.
+
+## Backend Guidelines
+- Use Type Hints for all function signatures.
+- Follow Pydantic models for request/response validation.
+- Ensure all API routes are documented in `app/routes/`.
+- Use the `app.config.settings` for configuration.
+- Log significant events (Ingestion, Retrieval, Errors).
