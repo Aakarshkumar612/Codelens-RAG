@@ -10,7 +10,6 @@ The project is currently in a "Headless" state. The frontend layer has been remo
 - **LLM:** Groq (Llama 3.3)
 - **Vector DB:** ChromaDB
 - **Embeddings:** Sentence-Transformers (Local)
-- **Auth/Data:** Supabase
 
 ## Setup
 

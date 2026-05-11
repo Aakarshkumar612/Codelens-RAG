@@ -1150,9 +1150,6 @@
                     <div class="dot dot-green"></div> Infra: GCP + Cloudflare + GitLab CI
                 </div>
                 <div class="meta-chip">
-                    <div class="dot dot-cyan"></div> Auth: Supabase + JWT
-                </div>
-                <div class="meta-chip">
                     <div class="dot dot-amber"></div> AI: Groq Llama 3 + ChromaDB
                 </div>
             </div>
@@ -1207,14 +1204,6 @@
                     </div>
                     <div class="pb-phase">
                         <div class="phase-label">Phase 5</div>
-                        <div class="phase-name">Auth + Supabase</div>
-                        <div class="phase-progress">
-                            <div class="phase-bar bar-todo" style="width:0%"></div>
-                        </div>
-                        <div class="phase-status status-todo">○ not started</div>
-                    </div>
-                    <div class="pb-phase">
-                        <div class="phase-label">Phase 6</div>
                         <div class="phase-name">Infra + Deploy</div>
                         <div class="phase-progress">
                             <div class="phase-bar bar-todo" style="width:0%"></div>
@@ -1543,22 +1532,6 @@
 
                 <div class="stack-card">
                     <div class="stack-head">
-                        <div class="stack-icon icon-amber">SB</div>
-                        <div class="stack-name">Supabase</div>
-                        <div class="stack-badge">free tier</div>
-                    </div>
-                    <div class="stack-body">
-                        <div class="stack-why">Provides Postgres database + built-in auth (email, OAuth, magic link) +
-                            Row Level Security in one free-tier package. Auth returns standard JWTs — FastAPI verifies
-                            them using the Supabase JWT secret. Eliminates the need to build authentication from
-                            scratch. 500MB free storage included.</div>
-                        <div class="stack-tags"><span class="tag">PostgreSQL</span><span class="tag">Auth</span><span
-                                class="tag">JWT</span><span class="tag">RLS</span></div>
-                    </div>
-                </div>
-
-                <div class="stack-card">
-                    <div class="stack-head">
                         <div class="stack-icon icon-amber">GQ</div>
                         <div class="stack-name">Groq API</div>
                         <div class="stack-badge">free tier</div>
@@ -1783,16 +1756,8 @@
                 </div>
 
                 <div class="lld-card">
-                    <div class="lld-head">Auth endpoints</div>
+                    <div class="lld-head">Meta endpoints</div>
                     <div class="lld-body">
-                        <div class="endpoint">
-                            <span class="method m-post">POST</span>
-                            <div>
-                                <div class="ep-path">/auth/verify</div>
-                                <div class="ep-desc">Verifies Supabase JWT. Used as a FastAPI dependency — all protected
-                                    routes call this. Returns {user_id, email}.</div>
-                            </div>
-                        </div>
                         <div class="endpoint">
                             <span class="method m-get">GET</span>
                             <div>
@@ -1820,22 +1785,14 @@
                 </div>
 
                 <div class="lld-card">
-                    <div class="lld-head">Supabase schema</div>
+                    <div class="lld-head">Local cache (SQLite)</div>
                     <div class="lld-body">
                         <div class="endpoint">
                             <span class="method m-post">TBL</span>
                             <div>
                                 <div class="ep-path">Table: repos</div>
-                                <div class="ep-desc">id UUID · user_id FK · url TEXT · status TEXT · file_count INT ·
-                                    created_at TIMESTAMP · chroma_collection TEXT</div>
-                            </div>
-                        </div>
-                        <div class="endpoint">
-                            <span class="method m-post">TBL</span>
-                            <div>
-                                <div class="ep-path">Table: chat_history</div>
-                                <div class="ep-desc">id UUID · user_id FK · repo_id FK · role TEXT · content TEXT ·
-                                    context_line JSONB · created_at TIMESTAMP</div>
+                                <div class="ep-desc">url TEXT PRIMARY KEY · status TEXT · file_count INT ·
+                                    last_indexed TIMESTAMP · is_indexed BOOLEAN</div>
                             </div>
                         </div>
                     </div>
@@ -1877,7 +1834,7 @@
                         <div class="flow-label">Store + persist</div>
                     </div>
                     <div class="flow-step">
-                        <div class="flow-box fb-navy">Supabase</div>
+                        <div class="flow-box fb-navy">SQLite</div>
                         <div class="flow-label">Save repo metadata</div>
                     </div>
                 </div>
@@ -1992,11 +1949,8 @@ volumes:
 
             <div class="security-grid">
                 <div class="sec-card">
-                    <div class="sec-title">JWT Authentication</div>
-                    <div class="sec-body">Supabase issues JWTs on login. FastAPI verifies every protected request using
-                        python-jose with the Supabase JWT secret. Tokens expire in 1 hour. Refresh tokens stored in
-                        httpOnly cookies — never in localStorage. Every WebSocket connection validates the JWT on first
-                        connect.</div>
+                    <div class="sec-title">Local Data Isolation</div>
+                    <div class="sec-body">Each repository's data is isolated within its own ChromaDB collection and separate folder in the local storage. This ensures that even in a multi-repo environment, queries are strictly scoped to the active repository.</div>
                 </div>
                 <div class="sec-card">
                     <div class="sec-title">Redis Rate Limiting</div>
@@ -2027,15 +1981,12 @@ volumes:
                         escaping before injection into RAG context.</div>
                 </div>
                 <div class="sec-card">
-                    <div class="sec-title">Supabase Row Level Security</div>
-                    <div class="sec-body">RLS policies on the repos and chat_history tables ensure users can only
-                        read/write their own data. Policy: auth.uid() = user_id. This means even if the FastAPI backend
-                        is compromised, the database layer still enforces data isolation per user. Enabled at the
-                        Supabase dashboard level.</div>
+                    <div class="sec-title">GCS Storage Security</div>
+                    <div class="sec-body">All uploaded files and PDFs are stored in private GCS buckets with no public access. FastAPI generates signed URLs for temporary access during the ingestion phase. CORS on the bucket is strictly limited to the application's origin.</div>
                 </div>
                 <div class="sec-card">
                     <div class="sec-title">Environment Secrets</div>
-                    <div class="sec-body">All secrets (GROQ_API_KEY, SUPABASE_JWT_SECRET, etc.) stored in GCP Secret
+                    <div class="sec-body">All secrets (GROQ_API_KEY, REDIS_TOKEN, etc.) stored in GCP Secret
                         Manager — never in code or Docker images. CI/CD pipeline pulls secrets at deploy time. .env
                         files in .gitignore. Frontend env vars prefixed with NEXT_PUBLIC_ only for non-sensitive config
                         (API URL).</div>
@@ -2160,21 +2111,6 @@ Instrumentator().instrument(app).expose(app)
                         <td class="env-desc">Groq API key — get free at console.groq.com</td>
                     </tr>
                     <tr>
-                        <td class="env-key">SUPABASE_URL</td>
-                        <td class="env-val">backend/.env</td>
-                        <td class="env-desc">Your Supabase project URL (from dashboard)</td>
-                    </tr>
-                    <tr>
-                        <td class="env-key">SUPABASE_JWT_SECRET</td>
-                        <td class="env-val">backend/.env</td>
-                        <td class="env-desc">JWT secret for verifying Supabase tokens in FastAPI</td>
-                    </tr>
-                    <tr>
-                        <td class="env-key">SUPABASE_SERVICE_KEY</td>
-                        <td class="env-val">backend/.env</td>
-                        <td class="env-desc">Service role key for admin DB operations</td>
-                    </tr>
-                    <tr>
                         <td class="env-key">REDIS_URL</td>
                         <td class="env-val">backend/.env</td>
                         <td class="env-desc">Upstash Redis REST URL for rate limiting</td>
@@ -2208,16 +2144,6 @@ Instrumentator().instrument(app).expose(app)
                         <td class="env-key">NEXT_PUBLIC_WS_URL</td>
                         <td class="env-val">.env.local</td>
                         <td class="env-desc">WebSocket URL (ws://localhost:8000 in dev)</td>
-                    </tr>
-                    <tr>
-                        <td class="env-key">NEXT_PUBLIC_SUPABASE_URL</td>
-                        <td class="env-val">.env.local</td>
-                        <td class="env-desc">Supabase project URL for frontend auth client</td>
-                    </tr>
-                    <tr>
-                        <td class="env-key">NEXT_PUBLIC_SUPABASE_ANON_KEY</td>
-                        <td class="env-val">.env.local</td>
-                        <td class="env-desc">Supabase anon/public key — safe to expose in frontend</td>
                     </tr>
                 </tbody>
             </table>
@@ -2474,10 +2400,9 @@ spec:
   data:
     - secretKey: GROQ_API_KEY
       remoteRef: { key: codelens-groq-api-key }
-    - secretKey: SUPABASE_JWT_SECRET
-      remoteRef: { key: codelens-supabase-jwt }
     - secretKey: UPSTASH_REDIS_URL
-      remoteRef: { key: codelens-upstash-url }</pre>
+      remoteRef: { key: codelens-upstash-url }
+</pre>
             </div>
 
             <div class="security-grid">

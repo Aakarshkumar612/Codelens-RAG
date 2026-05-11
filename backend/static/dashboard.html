@@ -221,7 +221,7 @@
 <!-- User Message -->
 <div class="flex justify-end">
 <div class="max-w-[80%] bg-surface-container-high border border-outline-variant/30 p-4 rounded-lg rounded-tr-none shadow-sm">
-<p class="font-body-md text-on-surface">Can you explain the current JWT validation logic in the `auth/middleware.ts` file? I need to understand how we are handling expired tokens before I implement the refresh flow.</p>
+<p class="font-body-md text-on-surface">Can you explain the main entry point of the FastAPI application? I want to see how the routers are included.</p>
 </div>
 </div>
 <!-- AI Response Card (Glassmorphism) -->
@@ -231,12 +231,12 @@
 <span class="material-symbols-outlined" data-icon="smart_toy" style="font-size: 18px;">smart_toy</span>
 <span class="font-bold">CodeLens AI</span>
 </div>
-<p class="font-body-md text-on-surface mb-4">The current JWT validation in `auth/middleware.ts` uses the `jsonwebtoken` library to verify incoming requests. Here is the breakdown of the logic:</p>
+<p class="font-body-md text-on-surface mb-4">The main entry point is in `app/main.py`. Here is how the FastAPI application is initialized and how the routes are included:</p>
 <!-- Embedded File Tag -->
 <div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant/50 p-3 rounded mb-4 font-code-sm">
 <div class="flex items-center gap-2 text-on-surface">
 <span class="material-symbols-outlined text-outline" data-icon="description" style="font-size: 16px;">description</span>
-<span>src/auth/middleware.ts</span>
+<span>app/main.py</span>
 </div>
 <button class="text-primary hover:text-primary-container flex items-center gap-1 transition-colors">
 <span class="material-symbols-outlined" data-icon="visibility" style="font-size: 14px;">visibility</span>
@@ -244,17 +244,17 @@
                             </button>
 </div>
 <ul class="list-disc list-inside space-y-2 text-on-surface-variant font-body-sm mb-4">
-<li>It extracts the token from the `Authorization` header (Bearer schema).</li>
-<li>Calls `jwt.verify()` with the `JWT_SECRET`.</li>
-<li>If validation fails specifically due to expiration (`TokenExpiredError`), it immediately throws a `401 Unauthorized` without attempting any refresh logic currently.</li>
+<li>The `FastAPI` app is instantiated with a title and description.</li>
+<li>CORS middleware is added to allow requests from local development ports.</li>
+<li>Routers for `ingest`, `files`, and `chat` are included using `app.include_router()`.</li>
 </ul>
-<p class="font-body-md text-on-surface">To implement a refresh flow, you will need to intercept this `TokenExpiredError` and check for a valid refresh token in the request cookies or body before failing the request entirely.</p>
+<p class="font-body-md text-on-surface">You can find the specific route definitions in the `app/routes/` directory.</p>
 </div>
 </div>
 <!-- User Message -->
 <div class="flex justify-end">
 <div class="max-w-[80%] bg-surface-container-high border border-outline-variant/30 p-4 rounded-lg rounded-tr-none shadow-sm">
-<p class="font-body-md text-on-surface">Show me the specific block where `TokenExpiredError` is caught.</p>
+<p class="font-body-md text-on-surface">Show me the `ingest` router implementation.</p>
 </div>
 </div>
 <!-- Loading Indicator -->
@@ -302,13 +302,11 @@
 <div class="flex items-center text-code-sm font-code-sm text-on-surface-variant overflow-hidden whitespace-nowrap">
 <span class="text-primary cursor-pointer hover:underline">repo-core</span>
 <span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
-<span class="cursor-pointer hover:text-on-surface">src</span>
-<span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
-<span class="cursor-pointer hover:text-on-surface">auth</span>
+<span class="cursor-pointer hover:text-on-surface">app</span>
 <span class="material-symbols-outlined mx-1 text-outline" data-icon="chevron_right" style="font-size: 14px;">chevron_right</span>
 <span class="text-on-surface font-bold flex items-center gap-1">
 <span class="material-symbols-outlined text-secondary" data-icon="description" style="font-size: 14px;">description</span>
-                        middleware.ts
+                        main.py
                     </span>
 </div>
 <!-- Actions -->
@@ -325,39 +323,33 @@
 <div class="flex-1 overflow-auto p-4 font-code-sm text-code-sm bg-[#060B18] text-on-surface relative leading-relaxed">
 <!-- Line Numbers Container -->
 <div class="absolute left-0 top-0 bottom-0 w-10 border-r border-outline-variant/20 bg-[#060B18] text-outline text-right pr-2 pt-4 select-none flex flex-col space-y-1">
-<span>12</span>
-<span>13</span>
-<span>14</span>
-<span>15</span>
-<span class="text-primary font-bold">16</span>
-<span class="text-primary font-bold">17</span>
-<span class="text-primary font-bold">18</span>
-<span class="text-primary font-bold">19</span>
-<span>20</span>
-<span>21</span>
-<span>22</span>
+<span>1</span>
+<span>2</span>
+<span>3</span>
+<span>4</span>
+<span class="text-primary font-bold">5</span>
+<span class="text-primary font-bold">6</span>
+<span class="text-primary font-bold">7</span>
+<span class="text-primary font-bold">8</span>
+<span>9</span>
+<span>10</span>
+<span>11</span>
 </div>
 <!-- Code Content -->
 <div class="ml-8 pl-4 pt-0 select-text whitespace-pre overflow-x-auto space-y-1 pb-4">
-<span class="text-[#ff7b72]">export const</span> authenticate <span class="text-[#79c0ff]">=</span> (req: Request, res: Response, next: NextFunction) <span class="text-[#79c0ff]">=&gt;</span> {
-  <span class="text-[#ff7b72]">const</span> authHeader = req.headers.<span class="text-[#79c0ff]">authorization</span>;
-  
-  <span class="text-[#ff7b72]">if</span> (!authHeader || !authHeader.<span class="text-[#d2a8ff]">startsWith</span>(<span class="text-[#a5d6ff]">'Bearer '</span>)) {
-    <span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">401</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Unauthorized'</span> });
-  }
+<span class="text-[#ff7b72]">from</span> fastapi <span class="text-[#ff7b72]">import</span> FastAPI
+<span class="text-[#ff7b72]">from</span> app.routes <span class="text-[#ff7b72]">import</span> ingest, files, chat
 
-<div class="bg-primary/10 border-l-2 border-primary -ml-4 pl-4 w-full block py-0.5"><span class="text-[#ff7b72]">const</span> token = authHeader.<span class="text-[#d2a8ff]">split</span>(<span class="text-[#a5d6ff]">' '</span>)[<span class="text-[#79c0ff]">1</span>];
-<span class="text-[#ff7b72]">try</span> {
-  <span class="text-[#ff7b72]">const</span> decoded = jwt.<span class="text-[#d2a8ff]">verify</span>(token, process.env.<span class="text-[#79c0ff]">JWT_SECRET</span>);
-  req.user = decoded;
-  <span class="text-[#d2a8ff]">next</span>();</div>} <span class="text-[#ff7b72]">catch</span> (error) {
-  <span class="text-[#ff7b72]">if</span> (error.name === <span class="text-[#a5d6ff]">'TokenExpiredError'</span>) {
-    <span class="text-[#8b949e]">// TODO: Implement refresh token logic here</span>
-<span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">401</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Token Expired'</span> });
-  }
-  <span class="text-[#ff7b72]">return</span> res.<span class="text-[#d2a8ff]">status</span>(<span class="text-[#79c0ff]">403</span>).<span class="text-[#d2a8ff]">json</span>({ error: <span class="text-[#a5d6ff]">'Forbidden'</span> });
-}
-                </div>
+<span class="text-[#79c0ff]">app = FastAPI</span>(
+    title=<span class="text-[#a5d6ff]">"CodeLens RAG API"</span>,
+    description=<span class="text-[#a5d6ff]">"AI-powered codebase exploration backend"</span>,
+)
+
+<span class="text-[#8b949e]"># Include routers</span>
+<span class="text-[#79c0ff]">app.include_router</span>(ingest.router)
+<span class="text-[#79c0ff]">app.include_router</span>(files.router)
+<span class="text-[#79c0ff]">app.include_router</span>(chat.router)
+</div>
 </div>
 </section>
 </main>
